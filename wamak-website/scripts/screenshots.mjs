@@ -11,7 +11,7 @@ const reduce = process.env.REDUCED_MOTION === "1";
 const browser = await chromium.launch();
 for (const width of widths) {
   const page = await browser.newPage({ viewport: { width, height: 900 }, reducedMotion: reduce ? "reduce" : "no-preference" });
-  await page.goto(base + route, { waitUntil: "networkidle" });
+  await page.goto(base + route, { waitUntil: "load" });
   await page.evaluate(async () => {
     for (let y = 0; y < document.body.scrollHeight; y += 600) {
       window.scrollTo(0, y);
@@ -19,7 +19,6 @@ for (const width of widths) {
     }
     window.scrollTo(0, 0);
   });
-  await page.waitForLoadState("networkidle");
   await page.waitForTimeout(1600);
   const name = route === "/" ? "home" : route.replace(/^\//, "").replace(/\//g, "_");
   await page.screenshot({ path: `${outDir}/${name}-${width}.png`, fullPage: true });

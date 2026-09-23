@@ -1,6 +1,6 @@
 # WAMAK GROUP — design plan
 
-Status: Phase 1, Checkpoint 1. Live reference: `/styleguide`.
+Status: Phase 2, Checkpoint 2. Live references: `/` (homepage) and `/styleguide`.
 
 ## 1. Concept
 
@@ -212,3 +212,20 @@ I reviewed the first pass against the question *"would I build this for any expo
 - Is there any real photography: products, samples, packing, the Dhaka office? Even phone photos help with art direction.
 - Is there a catalogue PDF, or should we design one later?
 - The project brief lists five target regions. The company brief also names countries. Should named countries appear, or regions only (recommended: regions only, to avoid implying active trade)?
+
+## 10. Checkpoint 2: screenshot review (390 / 768 / 1280 / 1440)
+
+What the self-review found, and the fixes:
+
+| Found | Fix |
+|---|---|
+| The page was 2,792px wide at 1440px. Screen-reader-only text inside the product scroller escaped its `overflow` container. | Cards are now `position: relative`. An overflow check runs in every screenshot pass and in the tests. |
+| The header logo showed a white box. `mix-blend-mode` had nothing to blend with inside the sticky header's transparent stacking context. | The header is always solid ivory. It still reads as transparent over the ivory hero, and a hairline appears on scroll. |
+| The material-story text panel was painted under the full-bleed image. | The panel is layered above the image. The image caption moved to the top-right corner, so the panel never hides it. |
+| The jute and handicrafts tiles differed in height by about 8px, so their names didn't align. | The lead pair shares one image height on desktop. |
+| Small division tiles were cramped at two per row on phones. | Below 640px they become rows with the image on the left. |
+| The chapter headline wrapped to five lines, and the jute rules grew in width, which looked accidental. | The title column is wider, and the rules are now one consistent length. |
+| Product placeholders repeated one texture across a row. | Textures alternate within a category. |
+| The map was unreadable at 390px. | It's cropped and enlarged towards Bangladesh on phones. The region list below names all five regions. |
+| The header "Request a quote" duplicated the sticky bar below 1280px. | Only one copy of the action shows at each breakpoint. |
+| The footer Services column wrapped awkwardly. | The navigation now sits in a nested four-column grid. |

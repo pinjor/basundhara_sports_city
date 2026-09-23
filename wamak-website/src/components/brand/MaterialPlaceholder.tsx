@@ -26,6 +26,7 @@ type Props = {
   /** Deterministic seed so server and client render identically. */
   seed?: number;
   caption?: ReactNode | false;
+  captionPlacement?: "bottom-start" | "top-end";
   className?: string;
 };
 
@@ -266,6 +267,7 @@ export function MaterialPlaceholder({
   aspect,
   seed = 7,
   caption,
+  captionPlacement = "bottom-start",
   className,
 }: Props) {
   const id = useId().replace(/[^a-zA-Z0-9_-]/g, "");
@@ -310,7 +312,7 @@ export function MaterialPlaceholder({
 
       {caption !== false && (
         <span
-          className={`absolute bottom-3 start-3 max-w-[calc(100%-1.5rem)] rounded-control px-2 py-1 text-[0.75rem] leading-tight font-medium ${
+          className={`absolute ${captionPlacement === "top-end" ? "top-3 end-3" : "bottom-3 start-3"} max-w-[calc(100%-1.5rem)] rounded-control px-2 py-1 text-[0.75rem] leading-tight font-medium ${
             onDark ? "bg-navy-950/80 text-ivory-50" : "bg-ivory-50/90 text-ink-900"
           }`}
         >

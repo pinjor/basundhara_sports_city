@@ -1,12 +1,12 @@
-import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
+import { axe } from "./helpers";
 
 const routes = ["/", "/styleguide"];
 
 for (const route of routes) {
   test(`${route} has no axe violations`, async ({ page }) => {
     await page.goto(route);
-    const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"]).analyze();
+    const results = await axe(page);
     expect(results.violations, JSON.stringify(results.violations, null, 2)).toEqual([]);
   });
 

@@ -10,7 +10,9 @@
     "typecheck": "tsc --noEmit",
     "test:e2e": "playwright test",
     "screenshots": "node scripts/screenshots.mjs",
-    "contrast": "node scripts/contrast.mjs"
+    "contrast": "node scripts/contrast.mjs",
+    "review": "node scripts/review.mjs",
+    "build:map": "node scripts/build-world-dots.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",
@@ -32,6 +34,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "dotted-map": "^3.1.0",
     "eslint": "^9",
     "eslint-config-next": "16.3.6",
     "tailwindcss": "^4",

@@ -10,11 +10,19 @@ import { track } from "@/lib/analytics";
 export function StickyMobileCTA() {
   const pathname = usePathname();
   if (pathname.startsWith("/request-quote")) return null;
+  // On a product or category page, carry that context into the RFQ.
+  const product = pathname.match(/^\/products\/([^/]+)\/([^/]+)$/);
+  const category = pathname.match(/^\/products\/([^/]+)$/);
+  const href = product
+    ? `/request-quote?product=${product[1]}/${product[2]}`
+    : category
+      ? `/request-quote?category=${category[1]}`
+      : "/request-quote";
 
   return (
     <div className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-ivory-50 px-4 py-3 xl:hidden print:hidden">
       <div className="mx-auto flex max-w-xl gap-3">
-        <Button href="/request-quote" className="flex-1">
+        <Button href={href} className="flex-1">
           Request a quote
         </Button>
         {PENDING.whatsapp && (

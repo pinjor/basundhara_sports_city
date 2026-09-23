@@ -229,3 +229,18 @@ What the self-review found, and the fixes:
 | The map was unreadable at 390px. | It's cropped and enlarged towards Bangladesh on phones. The region list below names all five regions. |
 | The header "Request a quote" duplicated the sticky bar below 1280px. | Only one copy of the action shows at each breakpoint. |
 | The footer Services column wrapped awkwardly. | The navigation now sits in a nested four-column grid. |
+
+## 11. Checkpoint 3: product templates
+
+- **Products hub:** Material and Use filters are generated from category data, so only values that actually have content appear. The navy sourcing tile is never filtered out. The page ends with a text index of every product.
+- **Category template (one file, 8 entries):**
+  - Page structure: hero with image, then the thread divider, commercial summary, range, buyers / customization / packaging, a navy requirement checklist, related services and FAQ, a closing CTA and related categories.
+  - Variants: agriculture and seafood carry the required notice (seasonal, destination rules, specs confirmed, quote after review). Art becomes a gallery with a filter by real tags and a "Commission a painting" action. Customized sourcing replaces the range with the 5-step sourcing process.
+- **Product template:**
+  - A gallery with three slots and a `<dialog>` lightbox: arrow keys move between images, and Esc closes it and returns focus to the image that opened it.
+  - The spec table lists standard rows marked "Confirmed on request". No Product schema is published, because there are no verified specs or prices.
+  - Actions: quote this product, Add to RFQ, and Ask about private label (only where available). The sticky mobile bar carries the product into the RFQ.
+- **RFQ list:**
+  - A slide-over `<dialog>` drawer with a per-item "Quantity or notes" field and Remove. The list is stored in sessionStorage. A toast confirms each addition and offers "View list".
+  - It never uses cart language, and shows no prices or checkout.
+- **Review fixes:** H1s use non-breaking hyphens ("eco‑friendly"). Art placeholders vary their palette, so the gallery wall isn't one repeated image.

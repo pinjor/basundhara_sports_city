@@ -3,6 +3,7 @@
 import { Button, type ButtonSize, type ButtonVariant } from "@/components/ui/Button";
 import { track } from "@/lib/analytics";
 import { rfq, useRfqList, type RfqItem } from "@/lib/rfq-store";
+import { ui } from "@/lib/ui-store";
 
 type Props = {
   item: RfqItem;
@@ -29,6 +30,7 @@ export function AddToRfqButton({ item, variant = "secondary", size = "sm", class
           rfq.remove(item);
         } else {
           rfq.add(item);
+          ui.toast(`${item.name} added to your RFQ list.`);
           track("add_to_rfq", { product: item.slug, category: item.category });
         }
       }}

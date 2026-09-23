@@ -1,7 +1,7 @@
 # Content to-do
 
 Everything on the site that is a placeholder, temporary, or needs client verification.
-Updated at the end of every phase. Last update: **Phase 2**.
+Updated at the end of every phase. Last update: **Phase 3**.
 
 ## Brand assets
 - [ ] **Logo vector master (SVG/AI/EPS)**. The current `assets/wamak-logo.png` is 332×311px with an opaque white ground. It renders with `mix-blend-mode: multiply` on light surfaces and on a white plate over navy. Keep it ≤ 72px tall until the vector arrives.
@@ -27,7 +27,12 @@ Updated at the end of every phase. Last update: **Phase 2**.
 - [ ] Confirm the product list per division. Names come from the company brief. Please remove anything WAMAK cannot currently supply.
 - [ ] Featured products on the homepage (currently 10, flagged `featured: true`). Confirm which products to lead with.
 - [ ] Art sizes: the brief mentions 30×24, 36×24 and 48×36 in. These are **not published** until confirmed as standard sizes.
-- [ ] Any verified specifications per product (every spec field currently reads "Specification confirmed on request").
+- [ ] Any verified specifications per product. Spec tables show Dimensions, Material, Colour and finish, and Packing as "Confirmed on request" until values are added to `specs` in `products.ts`.
+- [ ] Product feature bullets (3 per product), written from the brief's descriptions. Please confirm they are accurate.
+- [ ] Category page lists in `categories.ts`: "Who buys this", "Customization and private label", "Packaging" and "What to include in your requirement".
+- [ ] Private-label availability per product (the `privateLabel` flag). Currently off for sisal fibre and yarn, traditional handicrafts, art, agriculture and seafood.
+- [ ] Category FAQs in `src/content/faqs.ts` (2–3 per category) and the general FAQs.
+- [ ] Art gallery filter tags (medium and subject) per painting type.
 
 ## Copy needing approval
 - [ ] Hero headline "Reliable sourcing from Bangladesh, built for global buyers." (from the brief; confirm)
@@ -43,8 +48,11 @@ Updated at the end of every phase. Last update: **Phase 2**.
 - [ ] Product catalogue PDF (slot to be built in Phase 5)
 
 ## Pages linked but not yet built
-- [ ] Nav and footer links to products, services, about, resources, contact, request-quote and legal pages return 404 until Phases 3–5.
+- [ ] Links to services, about, resources, contact, commercial terms and legal pages return 404 until Phase 5. Links to `/request-quote` return 404 until Phase 4.
 - [ ] "Download catalogue" links to `/resources/catalogue` (Phase 5). No PDF exists yet.
+
+## Photography slots added in Phase 3
+- [ ] Each product has 3 gallery slots: the main product shot, a close-up, and a packed or in-use view. See `images.ts` for the brief for each slot.
 
 ## Temporary pages
 - [ ] `/styleguide` is internal (`noindex`). Decide whether to keep it or remove it before launch.

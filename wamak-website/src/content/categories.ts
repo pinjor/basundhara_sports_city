@@ -42,6 +42,14 @@ export type Category = {
   customization: string[];
   /** "What to include in your requirement". */
   requirementChecklist: string[];
+  /** Packaging options that can be coordinated. */
+  packaging: string[];
+  /** Service slugs (src/content/services.ts). */
+  relatedServices: string[];
+  /** Category slugs shown as "Related categories". */
+  related: CategorySlug[];
+  /** SEO description for the category page. */
+  metaDescription: string;
 };
 
 export const categories: Category[] = [
@@ -61,6 +69,11 @@ export const categories: Category[] = [
     buyers: ["Importers and wholesalers", "Supermarkets and eco stores", "Promotional product companies", "Gift shops and online retailers", "Home décor retailers"],
     customization: ["Custom size and design", "Colour selection", "Printed logo or embroidery", "Private label, barcode and hangtags", "Customized packaging"],
     requirementChecklist: ["Product type and intended use", "Dimensions and construction", "Print, logo or embroidery details", "Quantity per design", "Packing and labelling needs", "Destination country and port"],
+    packaging: ["Bulk export cartons", "Individual polybags or paper sleeves", "Retail hangtags and barcodes", "Printed gift or retail packaging"],
+    relatedServices: ["export", "oem-private-label", "packaging", "quality-coordination"],
+    related: ["handicrafts-home-decor", "sisal-natural-fibre", "customized-sourcing"],
+    metaDescription:
+      "Jute bag and jute product supplier in Bangladesh: shopping bags, totes, baskets, rugs and Shatranji, sourced to your size, print and packing. Request a quote.",
   },
   {
     slug: "handicrafts-home-decor",
@@ -78,6 +91,11 @@ export const categories: Category[] = [
     buyers: ["Home décor retailers", "Lifestyle and gift stores", "Hotels and hospitality buyers", "Interior designers", "Sourcing companies"],
     customization: ["Custom shapes, sizes and colours", "Collections developed to a brief", "Private label and hangtags", "Retail-ready packaging"],
     requirementChecklist: ["Reference images or sketches", "Dimensions and colours", "Quantity per item", "Retail or bulk packing", "Target delivery window", "Destination country and port"],
+    packaging: ["Bulk export cartons with protective packing", "Individual retail boxes or sleeves", "Hangtags, labels and barcodes", "Gift packaging"],
+    relatedServices: ["export", "product-development", "packaging", "quality-coordination"],
+    related: ["jute-eco-friendly", "art-paintings", "customized-sourcing"],
+    metaDescription:
+      "Bangladesh handicraft exporter for retailers and hospitality: handmade baskets, rugs, wall and table décor and gift products. Request a quote.",
   },
   {
     slug: "sisal-natural-fibre",
@@ -95,6 +113,11 @@ export const categories: Category[] = [
     buyers: ["Importers and distributors", "Rope and twine manufacturers", "Agricultural and packaging suppliers", "Craft and home goods producers"],
     customization: ["Grade and processing level", "Diameter, length and ply", "Coil, bale or spool packing", "Private-label packing for retail"],
     requirementChecklist: ["Product form (fibre, yarn, twine, rope, cord)", "Grade and technical specification", "Diameter, length or weight", "Quantity and packing format", "Sample requirement", "Destination country and port"],
+    packaging: ["Pressed bales for fibre", "Coils, spools or hanks", "Retail cards or labelled bundles", "Export cartons or woven bags"],
+    relatedServices: ["export", "global-sourcing", "quality-coordination", "documentation-shipment"],
+    related: ["jute-eco-friendly", "handicrafts-home-decor", "customized-sourcing"],
+    metaDescription:
+      "Natural fibre supplier in Bangladesh: sisal fibre, yarn, twine, rope and cord supplied to your grade, dimensions and packing. Request a quote.",
   },
   {
     slug: "loofah-bath",
@@ -112,6 +135,11 @@ export const categories: Category[] = [
     buyers: ["Personal care and bath brands", "Supermarkets and pharmacies", "Spa and hospitality suppliers", "Online retailers"],
     customization: ["Size, shape and cut", "Logo, label and barcode", "Retail packs and gift packs", "Colour for artificial products"],
     requirementChecklist: ["Product type (natural or artificial)", "Size and cut", "Retail or bulk packing", "Private-label artwork", "Quantity per SKU", "Destination country and port"],
+    packaging: ["Bulk packing by count or weight", "Retail packs with your label and barcode", "Gift packs and bath sets", "Export cartons"],
+    relatedServices: ["oem-private-label", "packaging", "product-development", "export"],
+    related: ["handicrafts-home-decor", "jute-eco-friendly", "customized-sourcing"],
+    metaDescription:
+      "Natural loofah sponges, scrubbers and bath accessories from Bangladesh, including private-label loofah with your branding and retail packs. Request a quote.",
   },
   {
     slug: "art-paintings",
@@ -129,6 +157,11 @@ export const categories: Category[] = [
     buyers: ["Art dealers and galleries", "Interior designers", "Hotels and restaurants", "Corporate offices", "Online art retailers"],
     customization: ["Commissioned subjects and palettes", "Custom dimensions", "Framed or unframed", "Series for a single interior"],
     requirementChecklist: ["Subject or style references", "Dimensions and orientation", "Medium (acrylic or watercolour)", "Framing preference", "Number of pieces", "Delivery address"],
+    packaging: ["Rolled in protective tubes (unframed)", "Framed pieces with corner protection and crating", "Certificate or artist note on request"],
+    relatedServices: ["export", "documentation-shipment"],
+    related: ["handicrafts-home-decor", "customized-sourcing"],
+    metaDescription:
+      "Original Bangladesh-inspired paintings in acrylic and watercolour for dealers, interiors and hospitality, plus commissioned artwork. Request a quote.",
   },
   {
     slug: "agriculture",
@@ -146,6 +179,11 @@ export const categories: Category[] = [
     buyers: ["Fresh produce importers", "Wholesale markets and distributors", "Supermarket buyers", "Food processors"],
     customization: ["Size and grade selection", "Quality parameters such as Brix", "Export packing format", "Trial shipment before regular supply"],
     requirementChecklist: ["Product and variety", "Size, grade and quality parameters", "Quantity and shipment frequency", "Packing format", "Destination-country import requirements", "Destination port or airport"],
+    packaging: ["Export cartons suited to the product", "Grade and size marking", "Packing agreed to the destination's requirements"],
+    relatedServices: ["export", "quality-coordination", "documentation-shipment"],
+    related: ["seafood", "customized-sourcing"],
+    metaDescription:
+      "Pineapple, selected fresh fruit and seasonal produce from Bangladesh, sourced to your grade and subject to season and destination import rules. Request a quote.",
   },
   {
     slug: "seafood",
@@ -153,7 +191,7 @@ export const categories: Category[] = [
     shortName: "Seafood",
     summary: "Live mud crab and selected seafood, subject to availability, certification and import rules.",
     intro:
-      "We are developing supply of Bangladesh-origin live mud crab and selected seafood for importers who can confirm their destination requirements. Every enquiry is reviewed against availability, certification and the import regulations of the destination country.",
+      "We are developing supply of Bangladesh-origin live mud crab and selected seafood for importers who can confirm their destination requirements. Every inquiry is reviewed against availability, certification and the import regulations of the destination country.",
     material: "tide",
     imageId: "category-seafood",
     materials: ["Seafood"],
@@ -163,6 +201,11 @@ export const categories: Category[] = [
     buyers: ["Seafood importers", "Wholesale distributors", "Restaurant and hospitality suppliers"],
     customization: ["Size and weight grade", "Male or female grading", "Live export packing", "Shipment frequency"],
     requirementChecklist: ["Species and product form", "Size or weight grade", "Quantity per shipment", "Shipment frequency", "Certification required at destination", "Destination airport"],
+    packaging: ["Live export packing agreed for air freight", "Grading and labelling per shipment", "Packing to destination requirements"],
+    relatedServices: ["export", "quality-coordination", "documentation-shipment"],
+    related: ["agriculture", "customized-sourcing"],
+    metaDescription:
+      "Live mud crab and selected seafood from Bangladesh for importers, subject to availability, certification and destination import rules. Request a quote.",
   },
   {
     slug: "customized-sourcing",
@@ -180,7 +223,20 @@ export const categories: Category[] = [
     buyers: ["Importers testing a new category", "Retailers developing private label", "Buying houses and sourcing agents", "Corporate and project buyers"],
     customization: ["Supplier identification", "Specification development", "OEM and private label", "Packaging development"],
     requirementChecklist: ["Product description and use", "Specification, drawings or samples", "Target quantity", "Target price, if available", "Packaging and labelling", "Destination and timing"],
+    packaging: ["Retail and gift packaging development", "Private-label artwork coordination", "Export cartons and marking"],
+    relatedServices: ["global-sourcing", "oem-private-label", "product-development", "packaging", "quality-coordination", "documentation-shipment"],
+    related: ["jute-eco-friendly", "handicrafts-home-decor", "loofah-bath"],
+    metaDescription:
+      "Customized product sourcing in Bangladesh: send your specification and we identify producers, coordinate samples, packaging, quality and shipment. Send your requirement.",
   },
+];
+
+/** Required wording wherever agriculture or seafood is offered. */
+export const REGULATED_NOTICE = [
+  "Availability can be seasonal.",
+  "Eligibility depends on the destination country's import regulations.",
+  "Specifications must be confirmed for each order.",
+  "A quotation follows our review of your requirement.",
 ];
 
 export const getCategory = (slug: string) => categories.find((c) => c.slug === slug);

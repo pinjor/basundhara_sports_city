@@ -65,7 +65,24 @@ const productImages: ImageEntry[] = products.map((p, i) => {
   };
 });
 
-export const images: ImageEntry[] = [...base, ...categoryImages, ...productImages];
+// Two detail slots per product for the gallery (close-up and packed/in-use view).
+const productDetails: ImageEntry[] = productImages.flatMap((img, i) =>
+  (["detail", "packed"] as const).map((kind, k) => ({
+    ...img,
+    id: `${img.id}-${kind}`,
+    alt: img.alt.replace("product photograph", kind === "detail" ? "close-up photograph" : "packed or in-use photograph"),
+    brief: kind === "detail" ? "Macro detail of material, weave or finish." : "Product as packed for export or shown in use.",
+    placeholder: (k === 0 ? img.placeholder : swapTexture(img.placeholder)) as MaterialVariant,
+    seed: 500 + i * 3 + k,
+  })),
+);
+
+function swapTexture(v: MaterialVariant): MaterialVariant {
+  const swap: Partial<Record<MaterialVariant, MaterialVariant>> = { fibre: "weave", weave: "fibre", twine: "fibre", loofah: "twine" };
+  return swap[v] ?? v;
+}
+
+export const images: ImageEntry[] = [...base, ...categoryImages, ...productImages, ...productDetails];
 
 export function getImage(id: string): ImageEntry {
   const img = images.find((i) => i.id === id);

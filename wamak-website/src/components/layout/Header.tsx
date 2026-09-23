@@ -9,6 +9,7 @@ import { Icon } from "@/components/ui/Icon";
 import { primaryNav } from "@/content/navigation";
 import { cn } from "@/lib/cn";
 import { useRfqList } from "@/lib/rfq-store";
+import { ui } from "@/lib/ui-store";
 import { MegaMenu } from "./MegaMenu";
 import { MobileNav } from "./MobileNav";
 import { handleMenuArrows, useDismiss } from "./useDismiss";
@@ -170,8 +171,10 @@ export function Header() {
 
           <div className="flex items-center gap-2">
             {rfqCount > 0 && (
-              <Link
-                href="/request-quote"
+              <button
+                type="button"
+                onClick={ui.openDrawer}
+                aria-haspopup="dialog"
                 className="inline-flex min-h-11 items-center gap-2 rounded-control px-3 text-small font-semibold text-navy-900 hover:bg-ivory-100"
                 aria-label={`RFQ list, ${rfqCount} ${rfqCount === 1 ? "product" : "products"}`}
               >
@@ -180,7 +183,7 @@ export function Header() {
                 <span className="grid min-w-6 place-items-center rounded-full bg-jute-300 px-1.5 text-[0.75rem] leading-6 text-navy-950 tabular-nums">
                   {rfqCount}
                 </span>
-              </Link>
+              </button>
             )}
             {/* Below xl the sticky bottom bar carries this action. */}
             <div className="hidden xl:block">

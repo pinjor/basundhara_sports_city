@@ -43,11 +43,11 @@ test.describe("mobile header", () => {
 
 test("adding a product shows the RFQ indicator", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("link", { name: /RFQ list/ })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /^RFQ list/ })).toHaveCount(0);
   const add = page.getByRole("button", { name: "Add Jute shopping bags to your RFQ list" });
   await add.scrollIntoViewIfNeeded();
   await add.click();
-  await expect(page.getByRole("link", { name: "RFQ list, 1 product" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "RFQ list, 1 product" })).toBeVisible();
   await expect(page.getByRole("button", { name: /Jute shopping bags is on your RFQ list/ })).toHaveAttribute("aria-pressed", "true");
 });
 

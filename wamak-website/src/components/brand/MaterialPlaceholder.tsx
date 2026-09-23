@@ -238,7 +238,17 @@ function Tide({ seed }: { seed: number }) {
   return <g>{lines}</g>;
 }
 
-function Canvas({ id }: { id: string }) {
+const CANVAS_WASHES = [
+  ["#c9a66b", "#5d7c8f", "#05245c"], // river at dusk
+  ["#d9c27a", "#7f8f4e", "#3f5a2e"], // paddy fields
+  ["#e0b07a", "#b86b4b", "#5b3a2e"], // brick and earth
+  ["#b8c7cf", "#6f8fa3", "#2c4a63"], // monsoon sky
+  ["#e6d3a3", "#a7b07c", "#56663f"], // village greens
+];
+
+function Canvas({ id, seed }: { id: string; seed: number }) {
+  const [a, b, c] = CANVAS_WASHES[seed % CANVAS_WASHES.length];
+  const horizon = 0.45 + (seed % 4) * 0.07;
   // Primed linen canvas with a single soft wash — suggests painting, depicts nothing.
   return (
     <>
@@ -249,10 +259,10 @@ function Canvas({ id }: { id: string }) {
           <path d="M1.5 0 V6 M4.5 0 V6" stroke="#dcd4bf" strokeWidth={0.6} />
         </pattern>
         <linearGradient id={`${id}-wash`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#c9a66b" stopOpacity={0.0} />
-          <stop offset="0.55" stopColor="#c9a66b" stopOpacity={0.35} />
-          <stop offset="0.62" stopColor="#5d7c8f" stopOpacity={0.35} />
-          <stop offset="1" stopColor="#05245c" stopOpacity={0.28} />
+          <stop offset="0" stopColor={a} stopOpacity={0.05} />
+          <stop offset={horizon} stopColor={a} stopOpacity={0.45} />
+          <stop offset={horizon + 0.06} stopColor={b} stopOpacity={0.45} />
+          <stop offset="1" stopColor={c} stopOpacity={0.4} />
         </linearGradient>
       </defs>
       <rect width={W} height={H} fill={`url(#${id}-linen)`} />
@@ -304,7 +314,7 @@ export function MaterialPlaceholder({
         {variant === "loofah" && <Loofah seed={seed} />}
         {variant === "harvest" && <Harvest id={id} />}
         {variant === "tide" && <Tide seed={seed} />}
-        {variant === "canvas" && <Canvas id={id} />}
+        {variant === "canvas" && <Canvas id={id} seed={seed} />}
         {/* Natural, window-side light and a fine grain unify every variant. */}
         <rect width={W} height={H} fill={`url(#${id}-light)`} />
         <rect width={W} height={H} filter={`url(#${id}-grain)`} opacity={0.35} />

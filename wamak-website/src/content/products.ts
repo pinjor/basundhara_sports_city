@@ -18,6 +18,8 @@ export type Product = {
   specs: { label: string; value: string }[];
   privateLabel: boolean;
   featured?: boolean;
+  /** Filter tags (used on the art gallery). Only real attributes. */
+  tags?: string[];
 };
 
 export const SPEC_PENDING = "Specification confirmed on request";
@@ -30,7 +32,7 @@ const p = (
   name: string,
   summary: string,
   features: string[],
-  opts: { privateLabel?: boolean; featured?: boolean } = {},
+  opts: { privateLabel?: boolean; featured?: boolean; tags?: string[] } = {},
 ): Product => ({
   slug,
   category,
@@ -40,6 +42,7 @@ const p = (
   specs: [],
   privateLabel: opts.privateLabel ?? true,
   featured: opts.featured,
+  tags: opts.tags,
 });
 
 export const products: Product[] = [
@@ -72,11 +75,11 @@ export const products: Product[] = [
   p("loofah-bath", "private-label-loofah", "Private-label loofah products", "Natural and artificial loofah products packed under your brand.", ["Your logo, label and barcode", "Retail and gift packs", "Coordinated with manufacturing partners"]),
 
   // Art & paintings
-  p("art-paintings", "acrylic-paintings", "Original acrylic paintings", "Original acrylic paintings inspired by Bangladesh's landscapes and daily life.", ["Original, one-of-a-kind", "Acrylic on canvas", "Framed or unframed"], { privateLabel: false, featured: true }),
-  p("art-paintings", "watercolour-paintings", "Watercolour paintings", "Original watercolour paintings of rivers, villages and nature.", ["Original work", "Watercolour on paper", "Framing on request"], { privateLabel: false }),
-  p("art-paintings", "rural-life-paintings", "Rural Bangladesh and village-life paintings", "Paintings of rural life, farming and village scenes.", ["Original work", "Acrylic or watercolour", "Series available"], { privateLabel: false }),
-  p("art-paintings", "river-boat-paintings", "River and boat paintings", "The rivers and boats of the Bengal delta, painted in original works.", ["Original work", "Acrylic or watercolour", "Landscape formats"], { privateLabel: false }),
-  p("art-paintings", "commissioned-paintings", "Commissioned paintings", "Paintings commissioned to your subject, size and palette for interiors and hospitality.", ["Commissioned to brief", "Custom dimensions", "Single pieces or series"], { privateLabel: false }),
+  p("art-paintings", "acrylic-paintings", "Original acrylic paintings", "Original acrylic paintings inspired by Bangladesh's landscapes and daily life.", ["Original, one-of-a-kind", "Acrylic on canvas", "Framed or unframed"], { tags: ["Acrylic", "Landscape"], privateLabel: false, featured: true }),
+  p("art-paintings", "watercolour-paintings", "Watercolour paintings", "Original watercolour paintings of rivers, villages and nature.", ["Original work", "Watercolour on paper", "Framing on request"], { tags: ["Watercolour", "Nature"], privateLabel: false }),
+  p("art-paintings", "rural-life-paintings", "Rural Bangladesh and village-life paintings", "Paintings of rural life, farming and village scenes.", ["Original work", "Acrylic or watercolour", "Series available"], { tags: ["Acrylic", "Watercolour", "Rural life"], privateLabel: false }),
+  p("art-paintings", "river-boat-paintings", "River and boat paintings", "The rivers and boats of the Bengal delta, painted in original works.", ["Original work", "Acrylic or watercolour", "Landscape formats"], { tags: ["Acrylic", "Watercolour", "River & boat"], privateLabel: false }),
+  p("art-paintings", "commissioned-paintings", "Commissioned paintings", "Paintings commissioned to your subject, size and palette for interiors and hospitality.", ["Commissioned to brief", "Custom dimensions", "Single pieces or series"], { tags: ["Commission"], privateLabel: false }),
 
   // Agriculture
   p("agriculture", "pineapple", "Pineapple", "Fresh Bangladeshi pineapple, subject to season and destination requirements.", ["Fresh fruit", "Size and grade to order", "Trial shipment before regular supply"], { privateLabel: false, featured: true }),

@@ -11,6 +11,10 @@ Brand values are provisional (sampled from the PNG logo) and must be re-checked 
 | `ink-600` #4A5360 | `ivory-50` #F7F5EE | Secondary text | 7.14:1 | 4.5:1 | Pass |
 | `ink-600` #4A5360 | `white` #FFFFFF | Secondary text on cards, placeholders | 7.79:1 | 4.5:1 | Pass |
 | `ink-600` #4A5360 | `mist-100` #E9EEF3 | Hints on form panels | 6.67:1 | 4.5:1 | Pass |
+| `ink-900` #1B222B | `ivory-100` #EFEBE0 | Body text on sunken sections | 13.45:1 | 4.5:1 | Pass |
+| `ink-600` #4A5360 | `ivory-100` #EFEBE0 | Secondary text on sunken sections | 6.54:1 | 4.5:1 | Pass |
+| `navy-900` #05245C | `ivory-100` #EFEBE0 | Headings on sunken sections | 12.47:1 | 4.5:1 | Pass |
+| `jute-700` #7A5A24 | `ivory-100` #EFEBE0 | Category labels on sunken sections | 5.32:1 | 4.5:1 | Pass |
 | `navy-900` #05245C | `ivory-50` #F7F5EE | Headings, secondary button label | 13.62:1 | 4.5:1 | Pass |
 | `navy-900` #05245C | `white` #FFFFFF | Headings on cards | 14.86:1 | 4.5:1 | Pass |
 | `navy-900` #05245C | `mist-100` #E9EEF3 | Headings on form panels | 12.73:1 | 4.5:1 | Pass |
@@ -22,14 +26,15 @@ Brand values are provisional (sampled from the PNG logo) and must be re-checked 
 | `navy-200` #B9C4D8 | `navy-950` #031738 | Secondary text in footer | 10.10:1 | 4.5:1 | Pass |
 | `jute-300` #C9A66B | `navy-900` #05245C | Accent text / rules on navy | 6.47:1 | 4.5:1 | Pass |
 | `jute-300` #C9A66B | `navy-950` #031738 | Accent text in footer | 7.73:1 | 4.5:1 | Pass |
-| `leaf-700` #2B7A35 | `ivory-50` #F7F5EE | Links | 4.89:1 | 4.5:1 | Pass |
-| `leaf-700` #2B7A35 | `white` #FFFFFF | Links on cards | 5.33:1 | 4.5:1 | Pass |
-| `leaf-700` #2B7A35 | `mist-100` #E9EEF3 | Links on form panels | 4.57:1 | 4.5:1 | Pass |
+| `leaf-700` #287433 | `ivory-50` #F7F5EE | Links | 5.29:1 | 4.5:1 | Pass |
+| `leaf-700` #287433 | `white` #FFFFFF | Links on cards | 5.78:1 | 4.5:1 | Pass |
+| `leaf-700` #287433 | `mist-100` #E9EEF3 | Links on form panels | 4.95:1 | 4.5:1 | Pass |
+| `leaf-700` #287433 | `ivory-100` #EFEBE0 | Links on sunken sections | 4.85:1 | 4.5:1 | Pass |
 | `jute-700` #7A5A24 | `ivory-50` #F7F5EE | Jute-toned text on light | 5.81:1 | 4.5:1 | Pass |
 | `danger` #B3261E | `white` #FFFFFF | Error text in fields | 6.54:1 | 4.5:1 | Pass |
 | `danger` #B3261E | `mist-100` #E9EEF3 | Error text on form panels | 5.60:1 | 4.5:1 | Pass |
 | `danger` #B3261E | `ivory-50` #F7F5EE | Error text on ivory | 5.99:1 | 4.5:1 | Pass |
-| `leaf-700` #2B7A35 | `ivory-50` #F7F5EE | Focus ring on light | 4.89:1 | 3:1 | Pass |
+| `leaf-700` #287433 | `ivory-50` #F7F5EE | Focus ring on light | 5.29:1 | 3:1 | Pass |
 | `jute-300` #C9A66B | `navy-900` #05245C | Focus ring on navy | 6.47:1 | 3:1 | Pass |
 | `field` #767063 | `white` #FFFFFF | Form-field border | 4.92:1 | 3:1 | Pass |
 | `field` #767063 | `mist-100` #E9EEF3 | Form-field border vs panel | 4.21:1 | 3:1 | Pass |
@@ -37,7 +42,7 @@ Brand values are provisional (sampled from the PNG logo) and must be re-checked 
 | `leaf-500` #3C9426 | `navy-900` #05245C | Fibre thread on navy (graphic) | 3.86:1 | 3:1 | Pass |
 | `jute-300` #C9A66B | `ivory-50` #F7F5EE | Jute rule on ivory (decorative only) | 2.10:1 | — | Decorative (exempt) |
 | `leaf-500` #3C9426 | `white` #FFFFFF | leaf-500 as text — NOT ALLOWED | 3.85:1 | 4.5:1 | **Fail — do not use** |
-| `leaf-700` #2B7A35 | `navy-900` #05245C | leaf-700 on navy — NOT ALLOWED | 2.79:1 | 3:1 | **Fail — do not use** |
+| `leaf-700` #287433 | `navy-900` #05245C | leaf-700 on navy — NOT ALLOWED | 2.57:1 | 3:1 | **Fail — do not use** |
 
 ## Rules that follow from this
 

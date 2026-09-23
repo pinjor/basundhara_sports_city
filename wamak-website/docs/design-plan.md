@@ -35,7 +35,7 @@ Provisional values sampled from the logo. Full audit in `docs/contrast.md`.
 | navy-900 | #05245C | Brand, headings, header, primary buttons, navy chapters |
 | navy-950 | #031738 | Footer, deepest sections |
 | leaf-500 | #3C9426 | Thread, logo leaf, graphics only |
-| leaf-700 | #2B7A35 | Links and focus ring on light surfaces |
+| leaf-700 | #287433 | Links and focus ring on light surfaces |
 | ivory-50 | #F7F5EE | The page |
 | jute-300 | #C9A66B | Material accent, fine rules, highlights and focus ring on navy |
 | ink-900 | #1B222B | Body text |
@@ -262,3 +262,17 @@ What the self-review found, and the fixes:
 - **Thank-you page:** shows the reference, what was sent, and what happens next. The summary lives only in that browser tab's session storage.
 - **Contact page:** details list, a lightweight location card that links to Google Maps (no heavy map embed), and a contact form with `?topic=catalogue` prefill.
 - **Tests:** Journeys A–C run end to end on desktop and mobile. They check the exact webhook payload WAMAK would receive: products with notes, source page, UTM tags and attachment.
+
+## 13. Checkpoint 5: remaining pages
+
+- **Built:** services hub and 7 service pages, How we work (the thread process with "What you provide" at each step), Why WAMAK, Global markets (the map plus "What changes by destination"), Commercial terms (with a navy Incoterms chapter), About (profile, mission, vision, values, leadership), Leadership messages (marked as drafts), Catalogue, Gallery, FAQ (grouped, with FAQPage JSON-LD), Careers, Privacy, Terms, Accessibility, and a designed 404.
+- **Honesty guards:**
+  - The catalogue download appears only once `catalogueUrl` is set.
+  - The gallery shows only photos marked `final`.
+  - Proof blocks (testimonials, logos, figures) render nothing while empty.
+  - Insights and case studies 404 and are linked nowhere.
+- **Review fixes:**
+  - The link green failed contrast on the sunken ivory background (4.47:1), a pair the audit never checked. The `leaf-700` token was tuned from #2B7A35 to #287433 (4.85:1 there, 5.29:1 on ivory), and the audit now covers every `ivory-100` pair.
+  - The page hero now has consistent spacing after the divider.
+  - The How we work intro no longer repeats its H1.
+- **Tests:** a crawler follows every internal link from the main pages and confirms none returns a 404.

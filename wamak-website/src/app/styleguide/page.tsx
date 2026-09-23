@@ -20,7 +20,7 @@ const palette = [
   { token: "navy-900", hex: "#05245C", use: "Brand, headings, header, primary buttons", text: "ivory-50 · 13.6:1" },
   { token: "navy-950", hex: "#031738", use: "Deepest sections, footer", text: "ivory-50 · 16.3:1" },
   { token: "leaf-500", hex: "#3C9426", use: "Leaf accent, thread — graphics only", text: "Graphics · 3.5:1 on ivory" },
-  { token: "leaf-700", hex: "#2B7A35", use: "Links, focus ring on light", text: "On ivory · 4.9:1" },
+  { token: "leaf-700", hex: "#287433", use: "Links, focus ring on light", text: "On ivory · 5.3:1" },
   { token: "ivory-50", hex: "#F7F5EE", use: "Main page background", text: "ink-900 · 14.7:1" },
   { token: "jute-300", hex: "#C9A66B", use: "Material accent, rules, highlights on navy", text: "On navy · 6.5:1" },
   { token: "ink-900", hex: "#1B222B", use: "Body text", text: "On ivory · 14.7:1" },

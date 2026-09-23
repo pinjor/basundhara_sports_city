@@ -4,7 +4,7 @@ import { writeFileSync } from "node:fs";
 
 const T = {
   "navy-950": "#031738", "navy-900": "#05245C", "navy-800": "#0B3272", "navy-200": "#B9C4D8",
-  "leaf-500": "#3C9426", "leaf-700": "#2B7A35", "ivory-50": "#F7F5EE", "ivory-100": "#EFEBE0",
+  "leaf-500": "#3C9426", "leaf-700": "#287433", "ivory-50": "#F7F5EE", "ivory-100": "#EFEBE0",
   "jute-300": "#C9A66B", "jute-700": "#7A5A24", "ink-900": "#1B222B", "ink-600": "#4A5360",
   "mist-100": "#E9EEF3", white: "#FFFFFF", field: "#767063", danger: "#B3261E",
 };
@@ -24,6 +24,10 @@ const pairs = [
   ["ink-600", "ivory-50", "Secondary text", "text"],
   ["ink-600", "white", "Secondary text on cards, placeholders", "text"],
   ["ink-600", "mist-100", "Hints on form panels", "text"],
+  ["ink-900", "ivory-100", "Body text on sunken sections", "text"],
+  ["ink-600", "ivory-100", "Secondary text on sunken sections", "text"],
+  ["navy-900", "ivory-100", "Headings on sunken sections", "text"],
+  ["jute-700", "ivory-100", "Category labels on sunken sections", "text"],
   ["navy-900", "ivory-50", "Headings, secondary button label", "text"],
   ["navy-900", "white", "Headings on cards", "text"],
   ["navy-900", "mist-100", "Headings on form panels", "text"],
@@ -38,6 +42,7 @@ const pairs = [
   ["leaf-700", "ivory-50", "Links", "text"],
   ["leaf-700", "white", "Links on cards", "text"],
   ["leaf-700", "mist-100", "Links on form panels", "text"],
+  ["leaf-700", "ivory-100", "Links on sunken sections", "text"],
   ["jute-700", "ivory-50", "Jute-toned text on light", "text"],
   ["danger", "white", "Error text in fields", "text"],
   ["danger", "mist-100", "Error text on form panels", "text"],

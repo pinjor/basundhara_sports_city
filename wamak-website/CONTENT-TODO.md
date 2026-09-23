@@ -1,7 +1,7 @@
 # Content to-do
 
 Everything on the site that is a placeholder, temporary, or needs client verification.
-Updated at the end of every phase. Last update: **Phase 4**.
+Updated at the end of every phase. Last update: **Phase 5**.
 
 ## Brand assets
 - [ ] **Logo vector master (SVG/AI/EPS)**. The current `assets/wamak-logo.png` is 332×311px with an opaque white ground. It renders with `mix-blend-mode: multiply` on light surfaces and on a white plate over navy. Keep it ≤ 72px tall until the vector arrives.
@@ -53,11 +53,22 @@ Updated at the end of every phase. Last update: **Phase 4**.
 - [ ] The consent checkbox links to `/privacy`. The privacy notice text needs client or legal review (Phase 5 draft).
 
 ## Downloads
-- [ ] Product catalogue PDF (slot to be built in Phase 5)
+- [ ] **Product catalogue PDF.** Add it to `public/catalogue/` and set `PENDING.catalogueUrl` in `src/content/site.ts`. Until then, `/resources/catalogue` says the catalogue is being prepared and offers "Request the latest catalogue". The "Download catalogue" links across the site lead to that page.
 
-## Pages linked but not yet built
-- [ ] Links to services, about, resources, commercial terms and legal pages return 404 until Phase 5.
-- [ ] "Download catalogue" links to `/resources/catalogue` (Phase 5). No PDF exists yet.
+
+## Copy added in Phase 5 (needs approval)
+- [ ] **Leadership messages** (`src/content/pages.ts` → `leadershipMessages`). The Chairman's message is from the company brief; the MD's message is newly drafted. Both show `[DRAFT — REQUIRES APPROVAL BY CHAIRMAN/MD]` on the page. Remove the badge in `about/leadership/page.tsx` once approved.
+- [ ] About: profile, mission, vision and value explanations (adapted from the brief).
+- [ ] The service pages' "What we coordinate" and "What you provide" lists (`services.ts`). Please confirm especially: "third-party inspection on request" and "shipment tracking updates".
+- [ ] Global markets: the one-line region descriptions and "What changes by destination".
+- [ ] Commercial terms: the Incoterm explanations (plain-language summaries, not legal definitions).
+- [ ] Careers: the text says there are no open positions and invites CVs by email.
+- [ ] **Privacy notice and Terms of use.** Both are marked `[DRAFT — REQUIRES LEGAL REVIEW BEFORE LAUNCH]`, and the privacy notice needs a data retention period.
+- [ ] Gallery: shows an honest "being prepared" state until manifest images are marked `final`.
+
+## Hidden until real content exists
+- Testimonials, client logos and key figures (`src/content/proof.ts`): the components render nothing while their arrays are empty.
+- Insights (`/insights/[slug]`) and case studies (`/case-studies/[slug]`): the templates exist, return 404 while empty, and are linked nowhere.
 
 ## Photography slots added in Phase 3
 - [ ] Each product has 3 gallery slots: the main product shot, a close-up, and a packed or in-use view. See `images.ts` for the brief for each slot.

@@ -8,6 +8,7 @@ import { LeadershipBlock } from "@/components/sections/LeadershipBlock";
 import { MarketsMap } from "@/components/sections/MarketsMap";
 import { MaterialStory } from "@/components/sections/MaterialStory";
 import { ProcessThread } from "@/components/sections/ProcessThread";
+import { ClientLogoWall, Metrics, Testimonials } from "@/components/sections/Proof";
 import { QuickInquiry } from "@/components/sections/QuickInquiry";
 import { SourcingChapter } from "@/components/sections/SourcingChapter";
 import { WhyWamak } from "@/components/sections/WhyWamak";
@@ -26,6 +27,10 @@ export default function HomePage() {
       <CategoryGrid />
       <SourcingChapter />
       <WhyWamak />
+      {/* Proof blocks render nothing until verified data exists (src/content/proof.ts). */}
+      <Metrics />
+      <Testimonials />
+      <ClientLogoWall />
       <FeaturedProducts />
       <MaterialStory />
       <ProcessThread />

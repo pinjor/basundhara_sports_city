@@ -10,6 +10,8 @@ export const PENDING = {
   whatsapp: null as string | null,
   domain: "[DOMAIN TO BE CONFIRMED]",
   officeHours: "[OFFICE HOURS TO BE CONFIRMED]",
+  /** Catalogue PDF path, e.g. "/catalogue/wamak-group-catalogue.pdf". Download buttons stay hidden while null. */
+  catalogueUrl: null as string | null,
 } as const;
 
 export const site = {

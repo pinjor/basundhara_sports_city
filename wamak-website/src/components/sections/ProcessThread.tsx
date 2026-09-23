@@ -11,8 +11,24 @@ import { cn } from "@/lib/cn";
  * the reader scrolls (scroll-linked, never scroll-jacked). With reduced
  * motion it is simply shown complete.
  */
-export function ProcessThread() {
-  const p = home.process;
+type Step = { title: string; body: string; you?: string };
+type Props = {
+  title?: string;
+  intro?: string;
+  link?: { label: string; href: string } | null;
+  steps?: readonly Step[];
+  /** Render the heading as h2 (default) or visually hidden when the page H1 covers it. */
+  headingId?: string;
+};
+
+export function ProcessThread({
+  title = home.process.title,
+  intro = home.process.intro,
+  link = { label: home.process.link, href: "/how-we-work" },
+  steps = home.process.steps,
+  headingId = "process-title",
+}: Props = {}) {
+  const p = { title, intro, steps };
   const listRef = useRef<HTMLOListElement>(null);
   const [progress, setProgress] = useState(0);
   const [reached, setReached] = useState(0);
@@ -50,19 +66,21 @@ export function ProcessThread() {
   }, [p.steps.length]);
 
   return (
-    <section aria-labelledby="process-title" className="surface-ivory py-20 md:py-32">
+    <section aria-labelledby={headingId} className="surface-ivory py-20 md:py-32">
       <div className="container-site grid-site gap-y-12">
         <div className="col-span-full lg:col-span-4">
           <div className="lg:sticky lg:top-28">
-            <h2 id="process-title" className="text-h2">
+            <h2 id={headingId} className="text-h2">
               {p.title}
             </h2>
             <p className="mt-6 measure text-body-l text-ink-600">{p.intro}</p>
-            <p className="mt-8">
-              <TextLink href="/how-we-work" className="inline-flex min-h-11 items-center">
-                {p.link}
-              </TextLink>
-            </p>
+            {link && (
+              <p className="mt-8">
+                <TextLink href={link.href} className="inline-flex min-h-11 items-center">
+                  {link.label}
+                </TextLink>
+              </p>
+            )}
           </div>
         </div>
 
@@ -93,6 +111,12 @@ export function ProcessThread() {
                   <div>
                     <h3 className="text-[1.25rem] leading-tight font-semibold tracking-[-0.015em]">{s.title}</h3>
                     <p className="mt-2 text-ink-600">{s.body}</p>
+                    {s.you && (
+                      <p className="mt-3 rounded-control bg-white px-4 py-3 text-small text-ink-900 ring-1 ring-line">
+                        <span className="font-semibold">What you provide: </span>
+                        {s.you}
+                      </p>
+                    )}
                   </div>
                 </li>
               );

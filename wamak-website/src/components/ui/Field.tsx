@@ -40,7 +40,12 @@ export function Field({ label, hint, error, required, className, children }: Fie
     <div className={cn("flex flex-col gap-2", className)}>
       <label htmlFor={id} className="flex items-baseline justify-between gap-4 text-small font-semibold text-ink-900">
         <span>{label}</span>
-        {required && <span className="text-[0.8125rem] font-medium text-ink-600">Required</span>}
+        {/* Visual cue only; assistive tech gets aria-required on the control. */}
+        {required && (
+          <span aria-hidden="true" className="text-[0.8125rem] font-medium text-ink-600">
+            Required
+          </span>
+        )}
       </label>
       {hint && (
         <p id={hintId} className="-mt-1 text-small text-ink-600">

@@ -254,3 +254,10 @@
     transform: translateY(0.5rem);
   }
 }
+
+@keyframes step-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.375rem);
+  }
+}

@@ -15,10 +15,19 @@ export default defineConfig({
     { name: "desktop", use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } } },
     { name: "mobile", use: { ...devices["Pixel 7"], viewport: { width: 390, height: 844 } } },
   ],
-  webServer: {
-    command: `npm run start -- -p ${PORT}`,
-    url: `http://localhost:${PORT}`,
-    reuseExistingServer: true,
-    timeout: 120_000,
-  },
+  webServer: [
+    {
+      // Receives the CRM webhook so tests can inspect exactly what WAMAK would get.
+      command: "node scripts/webhook-sink.mjs",
+      port: 3199,
+      reuseExistingServer: true,
+    },
+    {
+      command: `npm run start -- -p ${PORT}`,
+      url: `http://localhost:${PORT}`,
+      reuseExistingServer: true,
+      timeout: 120_000,
+      env: { LEAD_WEBHOOK_URL: "http://localhost:3199/hook", RATE_LIMIT_MAX: "1000" },
+    },
+  ],
 });

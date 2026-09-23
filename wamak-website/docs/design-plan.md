@@ -244,3 +244,21 @@ What the self-review found, and the fixes:
   - A slide-over `<dialog>` drawer with a per-item "Quantity or notes" field and Remove. The list is stored in sessionStorage. A toast confirms each addition and offers "View list".
   - It never uses cart language, and shows no prices or checkout.
 - **Review fixes:** H1s use non-breaking hyphens ("eco‑friendly"). Art placeholders vary their palette, so the gallery wall isn't one repeated image.
+
+## 12. Checkpoint 4: RFQ and forms
+
+- **RFQ wizard (`/request-quote`)**
+  - Three steps with a progress bar (`aria-current="step"`). When the step changes, focus moves to the new step's heading. Errors are specific, appear under the field, and focus goes to the first problem in on-screen order.
+  - Required fields: product or category, quantity, destination country, company, contact name, business email and consent. Everything else is optional or tucked into the "Packaging, customization and files" panel.
+  - Prefills come from the RFQ list, `?product=`, `?category=`, `?privateLabel=1` and the homepage quick inquiry. Progress is saved to sessionStorage and survives a reload.
+  - Step 3 shows a "Your request so far" summary, with Edit links back to the earlier steps.
+- **Server actions:** checks run in this order:
+  1. Honeypot. A bot that fills the hidden field gets a normal-looking success and no lead is sent.
+  2. Per-IP rate limit (5 per 10 minutes).
+  3. The same zod schema the browser used.
+  4. File checks: type, size, and the file's first bytes must match its claimed type.
+  5. Delivery.
+- **Delivery:** Resend sends an internal email (reply-to the buyer, file attached, source page and UTM tags included) and a buyer confirmation. An optional JSON webhook carries the same fields. Without keys, the lead is written to the server log, so local development works.
+- **Thank-you page:** shows the reference, what was sent, and what happens next. The summary lives only in that browser tab's session storage.
+- **Contact page:** details list, a lightweight location card that links to Google Maps (no heavy map embed), and a contact form with `?topic=catalogue` prefill.
+- **Tests:** Journeys A–C run end to end on desktop and mobile. They check the exact webhook payload WAMAK would receive: products with notes, source page, UTM tags and attachment.

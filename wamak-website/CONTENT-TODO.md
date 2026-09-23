@@ -1,7 +1,7 @@
 # Content to-do
 
 Everything on the site that is a placeholder, temporary, or needs client verification.
-Updated at the end of every phase. Last update: **Phase 3**.
+Updated at the end of every phase. Last update: **Phase 4**.
 
 ## Brand assets
 - [ ] **Logo vector master (SVG/AI/EPS)**. The current `assets/wamak-logo.png` is 332×311px with an opaque white ground. It renders with `mix-blend-mode: multiply` on light surfaces and on a white plate over navy. Keep it ≤ 72px tall until the vector arrives.
@@ -44,11 +44,19 @@ Updated at the end of every phase. Last update: **Phase 3**.
   - the material story ("Grown, retted, spun and woven by hand")
   - "Led from Dhaka" (states the head office is in West Dhanmondi)
 
+## Lead delivery (forms)
+- [ ] **Resend account + verified sending domain.** Set `RESEND_API_KEY` and `LEAD_FROM_EMAIL` (e.g. `quotes@<domain>`). Until then, submissions are only written to the server log.
+- [ ] `LEAD_NOTIFY_EMAIL` defaults to wamakgroup@gmail.com. Confirm, or name a team inbox.
+- [ ] Optional CRM: set `LEAD_WEBHOOK_URL` (HubSpot, Zoho, Make or Zapier). It receives the same fields as the email, as JSON.
+- [ ] **Hosting upload limit.** Specification uploads allow 10MB, but Vercel functions accept at most 4.5MB. Set `NEXT_PUBLIC_MAX_UPLOAD_MB=4` on Vercel, or add direct-to-storage uploads later.
+- [ ] Wording of the buyer confirmation email (in `src/lib/lead-delivery.ts`).
+- [ ] The consent checkbox links to `/privacy`. The privacy notice text needs client or legal review (Phase 5 draft).
+
 ## Downloads
 - [ ] Product catalogue PDF (slot to be built in Phase 5)
 
 ## Pages linked but not yet built
-- [ ] Links to services, about, resources, contact, commercial terms and legal pages return 404 until Phase 5. Links to `/request-quote` return 404 until Phase 4.
+- [ ] Links to services, about, resources, commercial terms and legal pages return 404 until Phase 5.
 - [ ] "Download catalogue" links to `/resources/catalogue` (Phase 5). No PDF exists yet.
 
 ## Photography slots added in Phase 3

@@ -1,3 +1,4 @@
+import { GoogleAnalytics } from "@next/third-parties/google";
 import type { Metadata, Viewport } from "next";
 import { Inter, Manrope } from "next/font/google";
 import { site } from "@/content/site";
@@ -39,6 +40,8 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           Skip to content
         </a>
         {children}
+        {/* Analytics load only when a GA4 ID is configured (see docs/analytics-events.md). */}
+        {process.env.NEXT_PUBLIC_GA_ID && <GoogleAnalytics gaId={process.env.NEXT_PUBLIC_GA_ID} />}
       </body>
     </html>
   );

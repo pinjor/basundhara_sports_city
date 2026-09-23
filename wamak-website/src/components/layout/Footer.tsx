@@ -46,7 +46,7 @@ export function Footer() {
             </div>
             <ul className="flex flex-col gap-1 text-small">
               <li>
-                <a href={`mailto:${site.email}`} className={`${footLink} gap-2`}>
+                <a href={`mailto:${site.email}`} className={`${footLink} inline-flex items-center gap-2`}>
                   <Icon name="mail" size={18} className="text-jute-300" />
                   {site.email}
                 </a>

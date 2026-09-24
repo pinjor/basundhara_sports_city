@@ -276,3 +276,22 @@ What the self-review found, and the fixes:
   - The page hero now has consistent spacing after the divider.
   - The How we work intro no longer repeats its H1.
 - **Tests:** a crawler follows every internal link from the main pages and confirms none returns a 404.
+
+## 14. Final checkpoint: quality pass
+
+- **SEO:**
+  - `metadataBase` comes from `NEXT_PUBLIC_SITE_URL`. The Open Graph and Twitter defaults, a sitemap of 67 routes, and a `robots.txt` that blocks crawlers until a production URL exists are all in place.
+  - Structured data: `Organization` JSON-LD (verified fields only), breadcrumbs and FAQ.
+  - Branded share images in Manrope, with the thread kept clear of text. A first version ran it through the headline, and I moved it.
+- **Performance:**
+  - Placeholder textures and the map dots were inline SVG, repeated again in the page payload: the homepage HTML was 999KB. They are now static cached files loaded lazily: homepage 999KB → 252KB, category page 550KB → 190KB.
+  - The favicon went from 145KB to 15KB, and the unused `motion` dependency was removed.
+  - Lighthouse (mobile, simulated): performance 93–97; accessibility, best practices and SEO 100; CLS 0. Simulated LCP is 2.7–3.1s against an observed 0.1–0.3s, and it's driven by the framework's JavaScript baseline. Re-measure on Vercel.
+- **Found and fixed:**
+  - **Mobile quick inquiry:** clearing an error when a field lost focus shifted the layout at the exact moment the buyer tapped submit, so the tap missed the button. Errors now clear while the buyer types. The contact form now works the same way.
+  - **Tapping before hydration:** a tap before the page's JavaScript loaded reloaded the homepage. The quick inquiry now submits natively to the wizard (without the email address) until JavaScript loads.
+  - **Stale test server:** Playwright was reusing a leftover server that served an old build. It now refuses to reuse one.
+  - **Layout overflow:** long unbroken words could widen grid layouts. Text now uses `overflow-wrap: anywhere`.
+  - **Missing images:** a missing image entry used to throw an error. It now shows a labelled placeholder.
+  - **Homepage canonical:** it was missing, and is now set.
+- **Tests:** 119 Playwright checks, including an axe, SEO and 360px overflow crawl of every sitemap route, keyboard-only and skip-link paths, reduced motion, structured data, a content stress test, the no-JavaScript quick inquiry, and journeys A–E.

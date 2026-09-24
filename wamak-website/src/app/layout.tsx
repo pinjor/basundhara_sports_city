@@ -1,7 +1,9 @@
 import { GoogleAnalytics } from "@next/third-parties/google";
 import type { Metadata, Viewport } from "next";
 import { Inter, Manrope } from "next/font/google";
+import { JsonLd } from "@/components/brand/JsonLd";
 import { site } from "@/content/site";
+import { organizationSchema, siteUrl } from "@/lib/schema";
 import "./globals.css";
 
 const manrope = Manrope({
@@ -17,6 +19,15 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
+  // Canonical and Open Graph URLs resolve against NEXT_PUBLIC_SITE_URL (domain pending).
+  metadataBase: new URL(siteUrl),
+  applicationName: site.name,
+  openGraph: {
+    type: "website",
+    siteName: site.name,
+    locale: "en_GB",
+  },
+  twitter: { card: "summary_large_image" },
   title: {
     default: `${site.name} — ${site.brandLine}`,
     template: `%s | ${site.name}`,
@@ -40,6 +51,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           Skip to content
         </a>
         {children}
+        <JsonLd data={organizationSchema()} />
         {/* Analytics load only when a GA4 ID is configured (see docs/analytics-events.md). */}
         {process.env.NEXT_PUBLIC_GA_ID && <GoogleAnalytics gaId={process.env.NEXT_PUBLIC_GA_ID} />}
       </body>

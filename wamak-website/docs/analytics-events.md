@@ -13,8 +13,8 @@ GA4 loads through `@next/third-parties` in the root layout, and only when `NEXT_
 | `rfq_submit` | RFQ sent | `items`, `incoterm` | Live (Phase 4) |
 | `spec_upload` | Specification file attached | `type` | Live (Phase 4) |
 | `contact_submit` | Contact form sent | `topic` | Live (Phase 4) |
-| `catalogue_download` | Catalogue downloaded | — | Phase 5 |
+| `catalogue_download` | Catalogue PDF downloaded (button appears once `catalogueUrl` is set) | — | Live, hidden |
 | `product_view` | Product page viewed | `product`, `category` | Live (Phase 3) |
 | `category_view` | Category page viewed | `category` | Live (Phase 3) |
 | `email_click` | `mailto:` link pressed (contact page) | `location` | Live (Phase 4) |
-| `phone_click` | Phone link pressed (once a number exists) | `location` | Phase 4 |
+| `phone_click` | Phone link pressed | `location` | Not wired yet: add once the phone number exists |

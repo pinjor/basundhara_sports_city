@@ -16,7 +16,7 @@ function route(to: { x: number; y: number }) {
  * thread routes to the five target regions. Labelled as regions WAMAK
  * welcomes inquiries from — not a claim of existing trade.
  */
-export function MarketsMap() {
+export function MarketsMap({ showLink = true }: { showLink?: boolean }) {
   const m = home.markets;
   const pct = (v: number, of: number) => `${(v / of) * 100}%`;
 
@@ -29,19 +29,23 @@ export function MarketsMap() {
           </h2>
           <div className="col-span-full lg:col-span-5 lg:col-start-8">
             <p className="measure text-body-l text-navy-200">{m.body}</p>
-            <p className="mt-6">
-              <TextLink href="/global-markets" tone="inverse" className="inline-flex min-h-11 items-center">
-                {m.link}
-              </TextLink>
-            </p>
+            {showLink && (
+              <p className="mt-6">
+                <TextLink href="/global-markets" tone="inverse" className="inline-flex min-h-11 items-center">
+                  {m.link}
+                </TextLink>
+              </p>
+            )}
           </div>
         </div>
 
         <div className="-mx-4 mt-12 overflow-hidden md:mx-0 md:mt-16" aria-hidden="true">
           {/* Phones: enlarge and crop towards Bangladesh; routes run off the edge, the list below names every region. */}
           <div className="relative w-[170%] -translate-x-[38%] md:w-full md:translate-x-0">
-          <svg viewBox={`0 0 ${world.width} ${world.height}`} className="block h-auto w-full" focusable="false">
-            <path d={world.d} stroke="var(--color-navy-200)" strokeOpacity={0.34} strokeWidth={0.46} strokeLinecap="round" fill="none" />
+          {/* Dots are a cached static file; routes and pins are drawn on top in the same coordinate space. */}
+          {/* eslint-disable-next-line @next/next/no-img-element -- static SVG, nothing to optimise */}
+          <img src="/images/world-dots.svg" alt="" loading="lazy" decoding="async" className="absolute inset-0 size-full" />
+          <svg viewBox={`0 0 ${world.width} ${world.height}`} className="relative block h-auto w-full" focusable="false">
             {regions.map((r) => (
               <path
                 key={r.id}

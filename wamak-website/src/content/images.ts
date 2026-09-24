@@ -84,8 +84,13 @@ function swapTexture(v: MaterialVariant): MaterialVariant {
 
 export const images: ImageEntry[] = [...base, ...categoryImages, ...productImages, ...productDetails];
 
+/**
+ * Looks up an image slot. A missing entry never breaks a page: it falls back
+ * to a labelled placeholder and warns during development.
+ */
 export function getImage(id: string): ImageEntry {
   const img = images.find((i) => i.id === id);
-  if (!img) throw new Error(`Image "${id}" is missing from src/content/images.ts`);
-  return img;
+  if (img) return img;
+  if (process.env.NODE_ENV !== "production") console.warn(`[images] "${id}" is not in src/content/images.ts`);
+  return { id, alt: "Image to be supplied", aspect: "4 / 5", brief: "Missing manifest entry", status: "temp", placeholder: "weave" };
 }

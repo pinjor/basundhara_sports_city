@@ -33,7 +33,8 @@ export function ContactForm() {
 
   const { register, handleSubmit, setError, formState } = useForm<FormInput, unknown, Values>({
     resolver: zodResolver(contactSchema.extend({ website: z.string() })),
-    mode: "onTouched",
+    mode: "onSubmit",
+    reValidateMode: "onChange",
     defaultValues: { topic: TOPIC_PARAM[params.get("topic") ?? ""] ?? "Product inquiry", website: "" },
   });
   const errors = formState.errors;

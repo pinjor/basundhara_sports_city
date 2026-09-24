@@ -15,7 +15,7 @@ export default function GlobalMarketsPage() {
   return (
     <>
       <PageHero crumbs={[{ name: "Global markets", href: "/global-markets" }]} title="From Bangladesh to the world" intro={marketsPage.intro} divider={false} />
-      <MarketsMap />
+      <MarketsMap showLink={false} />
       <section aria-label="Regions" className="surface-ivory py-20 md:py-28">
         <div className="container-site">
           <ul className="grid gap-x-10 md:grid-cols-2 lg:grid-cols-3">

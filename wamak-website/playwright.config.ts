@@ -25,7 +25,8 @@ export default defineConfig({
     {
       command: `npm run start -- -p ${PORT}`,
       url: `http://localhost:${PORT}`,
-      reuseExistingServer: true,
+      // Never reuse: a leftover server would serve a stale build.
+      reuseExistingServer: false,
       timeout: 120_000,
       env: { LEAD_WEBHOOK_URL: "http://localhost:3199/hook", RATE_LIMIT_MAX: "1000" },
     },

@@ -54,6 +54,8 @@ test("adding a product shows the RFQ indicator", async ({ page }) => {
 test("quick inquiry validates, then continues to the RFQ with a saved draft", async ({ page }) => {
   await page.goto("/");
   const form = page.locator("#quick-title").locator("xpath=ancestor::section");
+  // Wait for hydration: React switches the form to its own validation.
+  await expect(form.locator("form")).toHaveAttribute("novalidate", "");
   await form.getByRole("button", { name: "Start my request" }).click();
   await expect(form.getByText("Tell us the product or category")).toBeVisible();
   await expect(form.getByText("Enter a business email address")).toBeVisible();
@@ -81,5 +83,20 @@ test("reduced motion shows the process thread fully drawn", async ({ browser }) 
   await page.goto("/");
   const clip = page.locator("#process-title").locator("xpath=ancestor::section").locator("[style*='clip-path']");
   await expect(clip).toHaveAttribute("style", /inset\(0(px)? 0(px)? 0%/);
+  await ctx.close();
+});
+
+test("quick inquiry works before JavaScript loads (native GET, no email in the URL)", async ({ browser }) => {
+  const ctx = await browser.newContext({ javaScriptEnabled: false });
+  const page = await ctx.newPage();
+  await page.goto("/");
+  const form = page.locator("#quick-title").locator("xpath=ancestor::section");
+  await form.getByLabel("Product or category").fill("Sisal rope");
+  await form.getByLabel("Quantity").fill("20 tonnes");
+  await form.getByLabel("Destination country").selectOption("Kenya");
+  await form.getByLabel("Business email").fill("buyer@example.com");
+  await form.getByRole("button", { name: "Start my request" }).click();
+  await expect(page).toHaveURL(/\/request-quote\?from=quick&product=Sisal\+rope&quantity=20\+tonnes&country=Kenya$/);
+  expect(page.url()).not.toContain("example.com");
   await ctx.close();
 });

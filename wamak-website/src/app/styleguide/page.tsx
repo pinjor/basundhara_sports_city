@@ -2,8 +2,12 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { FibreThread } from "@/components/brand/FibreThread";
 import { Logo } from "@/components/brand/Logo";
+import { ManifestImage } from "@/components/brand/ManifestImage";
 import { MaterialPlaceholder, type MaterialVariant } from "@/components/brand/MaterialPlaceholder";
 import { Monogram } from "@/components/brand/Monogram";
+import { ProductCard } from "@/components/product/ProductCard";
+import { Breadcrumbs } from "@/components/ui/Breadcrumbs";
+import type { Product } from "@/content/products";
 import { Button } from "@/components/ui/Button";
 import { Checkbox, Field, Input, Select, Textarea } from "@/components/ui/Field";
 import { Icon, type IconName } from "@/components/ui/Icon";
@@ -84,6 +88,17 @@ const uiIcons: IconName[] = [
 ];
 
 const spacing = [4, 8, 12, 16, 24, 32, 48, 64, 96, 128];
+
+const STRESS_PRODUCT: Product = {
+  slug: "stress-test",
+  category: "handicrafts-home-decor",
+  name: "Extra-large hand-woven natural fibre storage basket set with reinforced handles, removable cotton lining and custom colour banding",
+  summary:
+    "A deliberately long description used to check that cards, clamps and wrapping behave when real product copy runs longer than expected, including in narrow columns on small phones.",
+  features: [],
+  specs: [],
+  privateLabel: true,
+};
 
 function Section({
   id,
@@ -512,11 +527,11 @@ export default function StyleguidePage() {
       {/* ---------- Space & radius ---------- */}
       <Section id="space" title="Space and radius" intro={<p>Spacing steps are fixed; section rhythm varies on purpose.</p>}>
         <div className="grid gap-12 lg:grid-cols-2">
-          <ul className="flex flex-col gap-3">
+          <ul className="flex min-w-0 flex-col gap-3">
             {spacing.map((s) => (
               <li key={s} className="flex items-center gap-4">
                 <span className="w-12 text-end font-mono text-small text-ink-600">{s}</span>
-                <span className="h-3 rounded-[2px] bg-jute-300" style={{ width: s * 2.5 }} />
+                <span className="h-3 max-w-full min-w-0 rounded-[2px] bg-jute-300" style={{ width: s * 2.5 }} />
               </li>
             ))}
           </ul>
@@ -533,6 +548,28 @@ export default function StyleguidePage() {
               <div className="h-24 w-40 bg-navy-900" />
               <span className="text-small text-ink-600">0px — full-bleed</span>
             </div>
+          </div>
+        </div>
+      </Section>
+
+      {/* ---------- Content stress test ---------- */}
+      <Section
+        id="stress"
+        title="Content stress test"
+        intro={<p>Long names, long unbroken words and a missing image entry must never break the layout or the page.</p>}
+      >
+        <div data-testid="stress" className="grid gap-8 md:grid-cols-3">
+          <ProductCard product={STRESS_PRODUCT} />
+          <ProductCard product={{ ...STRESS_PRODUCT, slug: "missing-image-entry", name: "Handwovenjutetotebagwithreinforcedgussetandcottonlining" }} />
+          <div className="flex flex-col gap-4">
+            <ManifestImage id="this-id-does-not-exist" className="rounded-card" />
+            <Breadcrumbs
+              items={[
+                { name: "Products", href: "/products" },
+                { name: "Handicrafts & home décor", href: "/products/handicrafts-home-decor" },
+                { name: STRESS_PRODUCT.name, href: "/styleguide#stress" },
+              ]}
+            />
           </div>
         </div>
       </Section>

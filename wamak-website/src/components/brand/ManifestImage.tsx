@@ -40,6 +40,7 @@ export function ManifestImage({ id, className, aspect, sizes = "100vw", priority
       aspect={ratio}
       caption={caption}
       captionPlacement={captionPlacement}
+      priority={priority}
       className={className}
     />
   );

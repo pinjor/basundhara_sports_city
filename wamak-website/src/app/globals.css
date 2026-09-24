@@ -92,6 +92,15 @@
     color: var(--color-navy-900);
     font-weight: 700;
     text-wrap: balance;
+    /* Very long product names or unbroken words must never widen the page. */
+    overflow-wrap: anywhere;
+  }
+
+  p,
+  li,
+  dd,
+  td {
+    overflow-wrap: anywhere;
   }
 
   p {

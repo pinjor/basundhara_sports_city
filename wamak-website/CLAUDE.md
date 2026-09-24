@@ -60,4 +60,6 @@ Fake reviews/certificates/logos/numbers/offices/factories/shipping claims/leader
 - Final test: would a procurement director in London, Dubai, Amsterdam, New York or Tokyo confidently send a real requirement through this site?
 
 ## Commands
-`npm run dev` · `npm run build` · `npm run lint` · `npm run typecheck` · `npm run test:e2e` (starts `next start` on :3100; build first) · `npm run screenshots -- /route <outDir> 390 768 1280 1440`
+`npm run dev` · `npm run build` (both generate `public/placeholders/` first) · `npm run lint` · `npm run typecheck` · `npm run test:e2e` (build first; starts its own server on :3100 and refuses a leftover one) · `npx lhci autorun` (build with `NEXT_PUBLIC_SITE_URL` set) · `npm run review -- <outDir> /route …` · `npm run contrast` · `npm run build:icons` · `npm run build:map`
+
+Handoff guide for maintainers: `docs/handoff.md`. Launch checklist: `CONTENT-TODO.md`.

@@ -102,14 +102,22 @@ export function RfqWizard() {
   const headingRef = useRef<HTMLHeadingElement>(null);
   const firstRender = useRef(true);
 
-  const form = useForm<Values>({ defaultValues: EMPTY, mode: "onTouched" });
+  const form = useForm<Values>({ defaultValues: EMPTY, mode: "onSubmit" });
   const { register, handleSubmit, setError, clearErrors, getValues, reset, control, formState } = form;
   const errors = formState.errors;
 
   // Prefill once: saved draft, then quick inquiry, then URL context.
   useEffect(() => {
     const draft = loadDraft();
-    const quick = search.get("from") === "quick" ? rfq.readDraft() : null;
+    // Quick inquiry: saved draft (JS path) or URL values (no-JS fallback).
+    const quick =
+      search.get("from") === "quick"
+        ? (rfq.readDraft() ?? {
+            product: search.get("product") ?? undefined,
+            quantity: search.get("quantity") ?? undefined,
+            country: search.get("country") ?? undefined,
+          })
+        : null;
     const next: Values = { ...EMPTY, ...draft };
     if (quick) {
       next.product = next.product || (quick.category ? "" : (quick.product ?? ""));

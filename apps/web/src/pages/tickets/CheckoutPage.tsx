@@ -54,7 +54,7 @@ export function CheckoutPage() {
       {order.isLoading && <LoadingSkeleton />}
       {order.isError && <ErrorState message={apiErrorMessage(order.error, t("common.error"))} />}
       {order.data && (
-        <form className="mt-4 grid gap-4 lg:grid-cols-[1fr_320px]" onSubmit={(event) => void submit(event)}>
+        <form className="mt-4 grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[minmax(0,1fr)_320px]" onSubmit={(event) => void submit(event)}>
           <section className="panel space-y-3 p-4">
             <p className="rounded-md border border-[var(--status-warning)] px-3 py-2 text-sm text-[var(--status-warning)]">{t("checkout.sandbox")}</p>
             <h2 className="font-display text-2xl uppercase">{order.data.event.title}</h2>

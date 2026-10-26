@@ -127,8 +127,7 @@ export function HelpPage() {
       <h1 className="font-display text-3xl uppercase text-[var(--brand-gold)]">{t("help.title")}</h1>
       <div className="panel mt-4 max-w-2xl space-y-3 p-5 text-sm leading-6">
         <p>{t("help.body")}</p>
-        <p>Phone: to be confirmed. Email: to be confirmed. (OD-12)</p>
-        <p>A booking stays unconfirmed until the server reports status CONFIRMED. A sandbox payment screen is not a receipt.</p>
+        <p>Your booking is confirmed only when My bookings shows it as Confirmed. The test payment screen is not a receipt.</p>
         <p>Seat colours are also labelled: empty, selected, held, and sold.</p>
       </div>
     </PublicShell>

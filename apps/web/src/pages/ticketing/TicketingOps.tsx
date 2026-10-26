@@ -16,34 +16,17 @@ import { DataTable } from "../../components/ui/DataTable";
 import { Button } from "../../components/ui/Button";
 import { Icon } from "../../components/ui/Icon";
 import { KPIStatCard } from "../../components/ui/KPIStatCard";
+import { DeskHeader } from "../../components/ui/DeskHeader";
 import { ErrorState, LoadingSkeleton } from "../../components/ui/States";
 import { StatusBadge } from "../../components/ui/StatusBadge";
+import { useToast } from "../../components/ui/Toast";
 import { apiErrorMessage } from "../../lib/apiError";
 import { useI18n } from "../../lib/i18n";
 import { formatBdt, formatWhen } from "../../lib/money";
 import { useActiveFeature } from "../../hooks/useActiveFeature";
-import { FeatureRegister } from "../platform/FeatureRegister";
+import { FeatureStrip } from "../platform/ResourceFeature";
 import { useAuthStore } from "../../store/auth";
 
-function FeatureStrip() {
-  const { feature, module } = useActiveFeature();
-  const role = useAuthStore((s) => s.user?.role);
-  if (!feature) return null;
-  return (
-    <FeatureRegister
-      key={feature.key}
-      module="ticketing"
-      featureKey={feature.key}
-      featureLabel={feature.label}
-      canWrite={canWriteModule(role, module?.key ?? "")}
-    />
-  );
-}
-
-function LiveNote() {
-  const { t } = useI18n();
-  return <p className="mb-4 text-xs text-text-dim">{t("ops.live")}</p>;
-}
 
 export function TicketingOverview() {
   const { t, lang } = useI18n();
@@ -51,13 +34,12 @@ export function TicketingOverview() {
   const data = analytics.data;
   return (
     <div>
-      <h1 className="font-display text-3xl uppercase text-[var(--brand-gold)]">{t("ops.overview")}</h1>
-      <LiveNote />
+      <DeskHeader kicker="Ticketing" title={t("ops.overview")} lede={t("ops.live")} />
       {analytics.isLoading && <LoadingSkeleton />}
       {analytics.isError && <ErrorState message={apiErrorMessage(analytics.error, t("common.error"))} onRetry={() => void analytics.refetch()} />}
       {data && (
         <>
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
             <KPIStatCard icon={<Icon name="ticket" className="h-4 w-4" />} label="Tickets sold" value={String(data.ticketsSold)} series={data.salesByDay.map((day) => day.tickets)} />
             <KPIStatCard icon={<Icon name="card" className="h-4 w-4" />} label="Confirmed revenue" value={formatBdt(data.revenueConfirmed, lang)} hint="BDT" />
             <KPIStatCard icon={<Icon name="chart" className="h-4 w-4" />} label="Captured payments" value={String(data.payments.captured)} />
@@ -106,6 +88,7 @@ export function TicketingEventsPage() {
   const events = useStaffEvents();
   const create = useCreateMatchEvent();
   const sales = useSetSalesStatus();
+  const { push } = useToast();
   const [open, setOpen] = useState(false);
   const [confirm, setConfirm] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -146,11 +129,12 @@ export function TicketingEventsPage() {
   return (
     <div>
       <FeatureStrip />
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <h1 className="font-display text-3xl uppercase text-[var(--brand-gold)]">{t("ops.events")}</h1>
-        {canWrite && <Button type="button" onClick={() => setOpen(true)}>New event</Button>}
-      </div>
-      <LiveNote />
+      <DeskHeader
+        kicker="Ticketing"
+        title={t("ops.events")}
+        lede={t("ops.live")}
+        action={canWrite && <Button type="button" onClick={() => setOpen(true)}>New event</Button>}
+      />
       {events.isLoading && <LoadingSkeleton />}
       {events.isError && <ErrorState message={apiErrorMessage(events.error, t("common.error"))} onRetry={() => void events.refetch()} />}
       {events.data && (
@@ -167,7 +151,20 @@ export function TicketingEventsPage() {
             {
               header: "Sales",
               accessor: (row) => canWrite ? (
-                <Button type="button" variant="secondary" onClick={() => void sales.mutateAsync({ id: row.id, salesStatus: row.salesStatus === "CLOSED" ? "ON_SALE" : "CLOSED" })}>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={sales.isPending}
+                  onClick={() =>
+                    sales.mutate(
+                      { id: row.id, salesStatus: row.salesStatus === "CLOSED" ? "ON_SALE" : "CLOSED" },
+                      {
+                        onSuccess: () => push(row.salesStatus === "CLOSED" ? `Sales opened for ${row.title}.` : `Sales closed for ${row.title}.`),
+                        onError: (err) => push(apiErrorMessage(err, "Could not change ticket sales."), "danger"),
+                      },
+                    )
+                  }
+                >
                   {row.salesStatus === "CLOSED" ? "Open sales" : "Close sales"}
                 </Button>
               ) : "—",
@@ -177,7 +174,7 @@ export function TicketingEventsPage() {
       )}
       {open && (
         <form className="panel mt-4 grid gap-3 p-4 md:grid-cols-2" onSubmit={(event) => { event.preventDefault(); setConfirm(true); }}>
-          <h2 className="md:col-span-2 font-display text-xl uppercase">New event</h2>
+          <h2 className="md:col-span-2 text-lg font-semibold text-text">New event</h2>
           <label className="text-sm">Title<input required value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} className="mt-1 min-h-11 w-full rounded-md border border-[var(--border-strong)] bg-[var(--surface-secondary)] px-3" /></label>
           <label className="text-sm">Sport
             <select value={form.sport} onChange={(event) => setForm({ ...form, sport: event.target.value })} className="mt-1 min-h-11 w-full rounded-md border border-[var(--border-strong)] bg-[var(--surface-secondary)] px-3">
@@ -216,8 +213,7 @@ export function TicketingOrdersPage() {
   return (
     <div>
       <FeatureStrip />
-      <h1 className="font-display text-3xl uppercase text-[var(--brand-gold)]">{t("ops.orders")}</h1>
-      <LiveNote />
+      <DeskHeader kicker="Ticketing" title={t("ops.orders")} lede={t("ops.live")} />
       <div className="mb-3 flex flex-wrap gap-2">
         <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Reference, name or mobile" className="min-h-11 rounded-md border border-[var(--border-strong)] bg-[var(--surface-secondary)] px-3" />
         <select value={status} onChange={(event) => setStatus(event.target.value)} className="min-h-11 rounded-md border border-[var(--border-strong)] bg-[var(--surface-secondary)] px-3" aria-label="Status">
@@ -252,14 +248,17 @@ export function TicketingPaymentsPage() {
   const canDecide = canWriteModule(role, "ticketing-payments") && role !== "TICKET_ADMINISTRATOR";
   const refunds = useRefunds();
   const decide = useDecideRefund();
+  const { push } = useToast();
   const [pending, setPending] = useState<{ row: RefundRow; decision: "APPROVED" | "REJECTED" } | null>(null);
   const rows = useMemo(() => refunds.data ?? [], [refunds.data]);
   return (
     <div>
       <FeatureStrip />
-      <h1 className="font-display text-3xl uppercase text-[var(--brand-gold)]">{t("ops.payments")}</h1>
-      <LiveNote />
-      <p className="mb-3 text-sm text-text-dim">Refunds are sandbox reversals. Approving one revokes the tickets. Ticket Administrators cannot approve refunds.</p>
+      <DeskHeader
+        kicker="Ticketing"
+        title={t("ops.payments")}
+        lede={<>{t("ops.live")} Refunds are sandbox reversals. Approving one revokes the tickets. Ticket Administrators cannot approve refunds.</>}
+      />
       {refunds.isLoading && <LoadingSkeleton />}
       {refunds.isError && <ErrorState message={apiErrorMessage(refunds.error, t("common.error"))} onRetry={() => void refunds.refetch()} />}
       {refunds.data && (
@@ -296,7 +295,15 @@ export function TicketingPaymentsPage() {
         onClose={() => setPending(null)}
         onConfirm={() => {
           if (!pending) return;
-          void decide.mutateAsync({ id: pending.row.id, decision: pending.decision }).finally(() => setPending(null));
+          const approved = pending.decision === "APPROVED";
+          decide.mutate(
+            { id: pending.row.id, decision: pending.decision },
+            {
+              onSuccess: () => push(approved ? "Refund approved. Tickets revoked." : "Refund rejected. Order is confirmed again."),
+              onError: (err) => push(apiErrorMessage(err, "Could not record the refund decision."), "danger"),
+              onSettled: () => setPending(null),
+            },
+          );
         }}
       />
     </div>
@@ -321,11 +328,12 @@ export function TicketingReportsPage() {
   return (
     <div>
       <FeatureStrip />
-      <div className="mb-2 flex items-center justify-between">
-        <h1 className="font-display text-3xl uppercase text-[var(--brand-gold)]">{t("ops.reports")}</h1>
-        <Button type="button" variant="secondary" onClick={download} disabled={!data}>Export CSV</Button>
-      </div>
-      <LiveNote />
+      <DeskHeader
+        kicker="Ticketing"
+        title={t("ops.reports")}
+        lede={t("ops.live")}
+        action={<Button type="button" variant="secondary" onClick={download} disabled={!data}>Export CSV</Button>}
+      />
       {analytics.isLoading && <LoadingSkeleton />}
       {analytics.isError && <ErrorState message={apiErrorMessage(analytics.error, t("common.error"))} onRetry={() => void analytics.refetch()} />}
       {data && (

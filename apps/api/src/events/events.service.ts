@@ -1,9 +1,31 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { AuditService } from "../audit/audit.service";
+import type { RequestUser } from "../auth/current-user.decorator";
+import { NotificationService } from "../common/notification.service";
 import { PrismaService } from "../prisma/prisma.service";
 
 @Injectable()
 export class EventsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly audit: AuditService,
+    private readonly notifications: NotificationService,
+  ) {}
+
+  /** Chairman sign-off on an event pack that is waiting for approval. */
+  async decide(id: string, decision: "Approved" | "Rejected", user: RequestUser) {
+    const pack = await this.prisma.eventPack.findUnique({ where: { id } });
+    if (!pack) throw new NotFoundException("Event pack not found");
+    if (pack.approvalStatus !== "Pending") throw new BadRequestException(`${pack.title} is already ${pack.approvalStatus.toLowerCase()}`);
+    const updated = await this.prisma.eventPack.update({
+      where: { id },
+      data: { approvalStatus: decision, approvedById: user.id, approvedAt: new Date() },
+      select: { id: true, title: true, approvalStatus: true, approvedAt: true },
+    });
+    await this.audit.record({ entityType: "EventPack", entityId: id, action: `approval:${decision}`, userId: user.id, before: { approvalStatus: pack.approvalStatus }, after: { approvalStatus: decision } });
+    await this.notifications.notify({ title: `Event ${decision.toLowerCase()}`, body: `${pack.title} was ${decision.toLowerCase()} by ${user.name}.`, href: `/?event=${id}` });
+    return updated;
+  }
 
   list() {
     return this.prisma.eventPack.findMany({

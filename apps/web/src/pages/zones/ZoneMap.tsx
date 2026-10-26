@@ -41,7 +41,7 @@ export function ZoneMap({ zones, onSelect }: { zones: ZoneDto[]; onSelect: (zone
     .sort((a, b) => a.pin.n - b.pin.n);
 
   return (
-    <div className="overflow-hidden rounded-lg border border-gold/20 bg-surface-2">
+    <div className="panel overflow-hidden">
       <div className="flex items-center justify-between border-b border-gold/15 px-4 py-3">
         <h3 className="font-display text-base font-semibold tracking-wide text-gold">Complex map</h3>
         <p className="text-[11px] uppercase tracking-[0.16em] text-text-dimmer">Bashundhara Sports City · live zones</p>

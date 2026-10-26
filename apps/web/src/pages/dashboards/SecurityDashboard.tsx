@@ -1,81 +1,60 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
+import { LOCKDOWN_SCOPES, SECURITY_ZONES } from "@bsc/shared";
+import { Link } from "react-router-dom";
+import { useAlertStatus, useEndLockdown, useSecurityDash, useStartLockdown, type RangeKey, type SecurityAlert, type SecurityCamera, type SecurityDash } from "../../api/dashboards";
+import { apiErrorMessage } from "../../lib/apiError";
+import { timeAgo } from "../../lib/audit";
+import { change, clock, count, day, scale, titleCase } from "./format";
 import { Ico } from "./icons";
-import { Badge, Card, Cols, Donut, Fields, Kpi, Line, Pick, Quick, Sheet, useReadOnly } from "./widgets";
+import { Badge, Card, Cols, DashStatus, Donut, Fields, KeyPick, Kpi, Line, Pick, Quick, Sheet, useReadOnly } from "./widgets";
 
-type Cam = { id: string; name: string; src: string; zone: string; credit?: string };
-type Alert = { id: string; icon: string; tone: string; title: string; where: string; when: string; src: string; cam: string };
+const RANGES = { today: "Today", yesterday: "Yesterday" } satisfies Partial<Record<RangeKey, string>>;
+type SecRange = keyof typeof RANGES;
 
-const cams: Cam[] = [
-  { id: "CAM-001", name: "Main Entrance", src: "/dash/cam-entrance.jpg", zone: "Entrances & Exits" },
-  { id: "CAM-078", name: "Football Stadium", src: "/dash/cam-stadium.jpg", zone: "Stadium Zone", credit: "Photo: Emessem T, CC BY-SA 4.0, via Wikimedia Commons" },
-  { id: "CAM-045", name: "Parking Area", src: "/dash/cam-parking.jpg", zone: "Parking Zone", credit: "Photo: epSos.de, CC BY 2.0, via Wikimedia Commons" },
-  { id: "CAM-132", name: "Futsal Court", src: "/dash/cam-futsal.jpg", zone: "Sports Zone" },
-  { id: "CAM-156", name: "Retail Zone", src: "/dash/cam-retail.jpg", zone: "Retail Zone" },
-  { id: "CAM-171", name: "Food Court", src: "/dash/cam-food.jpg", zone: "F&B Zone", credit: "Photo: McKay Savage, CC BY 2.0, via Wikimedia Commons" },
-];
+const ALL = "All Zones";
+const ZONES = [ALL, ...SECURITY_ZONES];
+const FEEDS = 6;
+const KIND_ICONS: Record<string, string> = { "Crowd Density High": "users", "Vehicle Without Pass": "car", "Perimeter Breach": "shield", "Camera Offline": "camera" };
+const severityTone = (severity: string) => (severity === "Critical" || severity === "High" ? "red" : severity === "Medium" ? "orange" : "blue");
+const camTone = (status: string) => (status === "ONLINE" ? "green" : status === "MAINTENANCE" ? "gold" : "red");
+const alertBadge = (a: SecurityAlert) => (a.status === "OPEN" ? (severityTone(a.severity) === "red" ? "red" : "gold") : a.status === "ACKNOWLEDGED" ? "blue" : "green");
 
-const ZONES = ["All Zones", "Stadium Zone", "Sports Zone", "Retail Zone", "F&B Zone", "Parking Zone", "Perimeter", "Entrances & Exits"];
+const CROWD_VIEWS = ["Occupancy now", "Entries", "Peak hour"];
 
-const pins: { x: number; y: number; zone: string; alert?: boolean; label: string }[] = [
-  { x: 14, y: 22, zone: "Entrances & Exits", label: "CAM-001 · North Gate" },
-  { x: 36, y: 12, zone: "Perimeter", label: "CAM-201 · North Fence" },
-  { x: 62, y: 16, zone: "Sports Zone", label: "CAM-132 · Futsal Court" },
-  { x: 80, y: 22, zone: "Perimeter", alert: true, label: "CAM-201 · East Zone breach" },
-  { x: 22, y: 46, zone: "Parking Zone", label: "CAM-045 · Parking A" },
-  { x: 46, y: 40, zone: "Stadium Zone", alert: true, label: "CAM-078 · Crowd density high" },
-  { x: 58, y: 54, zone: "Stadium Zone", label: "CAM-079 · Stand East" },
-  { x: 82, y: 48, zone: "Retail Zone", label: "CAM-156 · Retail Strip" },
-  { x: 30, y: 70, zone: "F&B Zone", label: "CAM-171 · Food Court" },
-  { x: 52, y: 76, zone: "Parking Zone", alert: true, label: "CAM-045 · Suspicious activity" },
-  { x: 74, y: 72, zone: "Sports Zone", label: "CAM-140 · Cricket Nets" },
-  { x: 88, y: 84, zone: "Entrances & Exits", label: "CAM-112 · Entry Gate" },
-];
+/** 0 → blue, 0.5 → yellow, 1 → red; matches the `.heat-scale` legend. */
+const heatColor = (level: number) => `hsl(${Math.round(220 - Math.min(1, Math.max(0, level)) * 220)} 70% ${level > 0 ? 38 : 18}%)`;
 
-const ALERTS: Alert[] = [
-  { id: "A-1042", icon: "alert", tone: "red", title: "Unauthorized Access", where: "Main Gate", when: "2 min ago", src: "/dash/cam-entrance.jpg", cam: "CAM-001" },
-  { id: "A-1041", icon: "alert", tone: "orange", title: "Suspicious Activity", where: "Parking Area", when: "12 min ago", src: "/dash/cam-parking.jpg", cam: "CAM-045" },
-  { id: "A-1040", icon: "users", tone: "orange", title: "Crowd Density High", where: "Stadium", when: "25 min ago", src: "/dash/cam-stadium.jpg", cam: "CAM-078" },
-  { id: "A-1039", icon: "car", tone: "red", title: "Vehicle Without Pass", where: "Entry Gate", when: "32 min ago", src: "/dash/cam-retail.jpg", cam: "CAM-112" },
-  { id: "A-1038", icon: "shield", tone: "red", title: "Perimeter Breach", where: "East Zone", when: "41 min ago", src: "/dash/cam-food.jpg", cam: "CAM-201" },
-];
-const OPEN_BASE = 12;
+function crowdCells(view: string, crowd: SecurityDash["crowd"]) {
+  if (view === "Occupancy now") {
+    return crowd.live.map((z) => ({ zone: z.zone, level: z.capacity ? z.value / z.capacity : 0, label: `${count(z.value)} · ${z.capacity ? Math.round((z.value / z.capacity) * 100) : 0}%` }));
+  }
+  const rows = view === "Peak hour" ? crowd.peak.zones : crowd.entries;
+  const max = Math.max(1, ...rows.map((z) => z.value));
+  return rows.map((z) => ({ zone: z.zone, level: z.value / max, label: `${count(z.value)} entries` }));
+}
 
-const events = [
-  ["10:24 AM", "/dash/cam-entrance.jpg", "CAM-001", "Main Entrance", "Face Matched", "ID: #4587", "Approved", "green"],
-  ["10:18 AM", "/dash/cam-parking.jpg", "CAM-045", "Parking Area", "Suspicious Activity", "N/A", "Investigating", "orange"],
-  ["10:12 AM", "/dash/cam-stadium.jpg", "CAM-078", "Stadium Zone", "Crowd Density High", "N/A", "Monitoring", "blue"],
-  ["10:08 AM", "/dash/cam-retail.jpg", "CAM-112", "Entry Gate", "Vehicle Without Pass", "Plate: DHA-3321", "Alert", "red"],
-  ["10:03 AM", "/dash/cam-food.jpg", "CAM-201", "Perimeter", "Perimeter Breach", "N/A", "Investigating", "orange"],
-] as const;
-
-const FLOW: Record<string, { labels: string[]; values: number[] }> = {
-  Today: { labels: ["6AM", "9AM", "12PM", "3PM", "6PM", "9PM"], values: [600, 900, 820, 1250, 1480, 1100, 1350, 980, 1150, 760, 900] },
-  Yesterday: { labels: ["6AM", "9AM", "12PM", "3PM", "6PM", "9PM"], values: [500, 780, 760, 1100, 1300, 1000, 1180, 900, 1000, 700, 820] },
-};
-
-const VEHICLE: Record<string, { entries: number[]; exits: number[] }> = {
-  Today: { entries: [120, 210, 180, 260, 300, 240, 340, 280, 220, 160], exits: [80, 150, 200, 190, 260, 300, 250, 310, 260, 200] },
-  Yesterday: { entries: [100, 190, 170, 230, 280, 220, 300, 260, 200, 150], exits: [70, 140, 180, 180, 240, 270, 230, 290, 240, 180] },
-};
+function Shot({ src, alt, className }: { src: string | null | undefined; alt: string; className: string }) {
+  if (src) return <img src={src} alt={alt} className={className} />;
+  return <span className={`${className} shot-none`} role="img" aria-label={alt}><Ico name="camera" /></span>;
+}
 
 export function SecurityDashboard() {
   const { hash } = useLocation();
   const ro = useReadOnly();
-  const [zone, setZone] = useState("All Zones");
+  const [range, setRange] = useState<SecRange>("today");
+  const [zone, setZone] = useState(ALL);
   const [zoom, setZoom] = useState(1);
-  const [cam, setCam] = useState<Cam | null>(null);
+  const [camId, setCamId] = useState<string | null>(null);
   const [sheet, setSheet] = useState<"all" | "map" | "lock" | "report" | "alerts" | null>(null);
-  const [crowd, setCrowd] = useState("Live");
-  const [flow, setFlow] = useState("Today");
-  const [veh, setVeh] = useState("Today");
+  const [crowd, setCrowd] = useState(CROWD_VIEWS[0]);
   const [flash, setFlash] = useState("");
-  const [acked, setAcked] = useState<string[]>([]);
   const [alertId, setAlertId] = useState<string | null>(null);
-  const [lockdown, setLockdown] = useState(false);
-  const alert = ALERTS.find((a) => a.id === alertId) ?? null;
-  const camById = (id: string) => cams.find((c) => c.id === id) ?? null;
-  const ack = (id: string) => setAcked((x) => (x.includes(id) ? x : [...x, id]));
+  const [lockForm, setLockForm] = useState({ reason: "", scope: LOCKDOWN_SCOPES[0] as string, drill: true });
+  const { data, error, refetch } = useSecurityDash(range);
+  const alertStatus = useAlertStatus();
+  const startLockdown = useStartLockdown();
+  const endLockdown = useEndLockdown();
 
   useEffect(() => {
     const id = hash.replace("#", "");
@@ -85,11 +64,46 @@ export function SecurityDashboard() {
     setFlash(id);
     const t = window.setTimeout(() => setFlash(""), 1600);
     return () => window.clearTimeout(t);
-  }, [hash]);
+  }, [hash, data === undefined]);
 
+  if (!data) return <DashStatus error={error} onRetry={() => refetch()} />;
+
+  const { kpis, cameras, alerts, events, incidents, flow, traffic, access, lockdown } = data;
   const f = (id: string) => (flash === id ? "flash" : "");
-  const fl = FLOW[flow];
-  const v = VEHICLE[veh];
+  const cam = cameras.find((c) => c.id === camId) ?? null;
+  const alert = [...alerts, ...events].find((a) => a.id === alertId) ?? null;
+  const feeds = cameras.filter((c) => c.imageUrl).slice(0, FEEDS);
+  const pins = cameras.filter((c) => c.mapX !== null && c.mapY !== null);
+  const openAlerts = alerts.filter((a) => a.status === "OPEN");
+  const flowScale = scale(flow.people);
+  const trafficScale = scale([...traffic.entries, ...traffic.exits]);
+  const accessPct = (n: number) => (access.total ? Math.round((n / access.total) * 1000) / 10 : 0);
+  const lockError = startLockdown.error ?? endLockdown.error;
+  const peakHour = flow.people.reduce((top, v, i) => (v > (flow.people[top] ?? 0) ? i : top), 0);
+  const crowdRows = crowdCells(crowd, data.crowd);
+  const crowdNote =
+    crowd === "Occupancy now"
+      ? "People in each zone now, as a share of zone capacity."
+      : crowd === "Peak hour"
+        ? `Gate entries per zone during the busiest hour (${data.crowd.peak.label}), ${RANGES[range].toLowerCase()}.`
+        : `Gate entries per zone, ${RANGES[range].toLowerCase()}.`;
+
+  const openCamera = (c: SecurityCamera) => setCamId(c.id);
+  const cameraOf = (a: SecurityAlert) => cameras.find((c) => c.id === a.camera?.id) ?? null;
+  const move = (a: SecurityAlert, status: "ACKNOWLEDGED" | "RESOLVED") => alertStatus.mutate({ id: a.id, status }, { onSuccess: () => setAlertId(null) });
+  const toggleLockdown = () => {
+    const done = { onSuccess: () => setSheet(null) };
+    if (lockdown) endLockdown.mutate(lockdown.id, done);
+    else if (lockForm.reason.trim()) startLockdown.mutate({ ...lockForm, reason: lockForm.reason.trim() }, done);
+  };
+
+  const insights = [
+    { icon: "alert", tone: openAlerts.length ? "red" : "green", text: openAlerts.length ? `${openAlerts.length} alert${openAlerts.length > 1 ? "s" : ""} waiting for acknowledgement.` : "No alerts waiting for acknowledgement." },
+    { icon: "shield", tone: access.denied ? "red" : "green", text: `${count(access.denied)} access attempt${access.denied === 1 ? "" : "s"} denied ${RANGES[range].toLowerCase()}.` },
+    { icon: "camera", tone: kpis.camerasOnline === kpis.cameras ? "green" : "blue", text: `${kpis.camerasOnline} of ${kpis.cameras} cameras online.` },
+    ...(flow.people.some((v) => v > 0) ? [{ icon: "clock", tone: "blue", text: `Busiest hour for entries: ${flow.labels[peakHour]}.` }] : []),
+    { icon: "activity", tone: incidents.length ? "purple" : "green", text: `${incidents.length} incident${incidents.length === 1 ? "" : "s"} still open.` },
+  ];
 
   return (
     <div className="page p-sec">
@@ -101,27 +115,30 @@ export function SecurityDashboard() {
       {lockdown && (
         <div className="drill" role="status">
           <Ico name="lock" />
-          <span><b>Lockdown drill active</b><small>Simulation only · gates and hardware are not affected</small></span>
-          <button type="button" className="panel-btn" onClick={() => setLockdown(false)}>End lockdown</button>
+          <span>
+            <b>{lockdown.drill ? "Lockdown drill active" : "Lockdown active"} · {lockdown.scope}</b>
+            <small>{lockdown.reason} · started {timeAgo(lockdown.startedAt)}</small>
+          </span>
+          {!ro && <button type="button" className="panel-btn" disabled={endLockdown.isPending} onClick={() => endLockdown.mutate(lockdown.id)}>End lockdown</button>}
         </div>
       )}
 
       <div className="kpis c6">
-        <Kpi variant="mini" icon="camera" label="Total Cameras" value="248" delta="12%" onClick={() => setSheet("all")} />
-        <Kpi variant="mini" icon="alert" label="Active Alerts" value={String(OPEN_BASE - acked.length)} delta="33%" bad color="#f0444a" onClick={() => setSheet("alerts")} />
-        <Kpi variant="mini" icon="users" label="People Detected Today" value="1,248" delta="18%" to="/security#people" />
-        <Kpi variant="mini" icon="car" label="Vehicles Tracked" value="342" delta="26%" to="/security#vehicles" />
-        <Kpi variant="mini" icon="shield" label="System Uptime" value="99.8%" delta="0.2%" onClick={() => setSheet("report")} />
-        <Kpi variant="mini" icon="siren" label="Critical Incidents" value="5" delta="67%" bad color="#f0444a" onClick={() => setSheet("alerts")} />
+        <Kpi variant="mini" icon="camera" label="Total Cameras" value={count(kpis.cameras)} onClick={() => setSheet("all")} />
+        <Kpi variant="mini" icon="alert" label="Active Alerts" value={count(kpis.activeAlerts)} color="#f0444a" onClick={() => setSheet("alerts")} />
+        <Kpi variant="mini" icon="users" label={`Entries ${RANGES[range]}`} value={count(kpis.people)} {...change(kpis.peopleDelta)} to="/security#people" />
+        <Kpi variant="mini" icon="car" label="Vehicles Tracked" value={count(kpis.vehicles)} {...change(kpis.vehiclesDelta)} to="/security#vehicles" />
+        <Kpi variant="mini" icon="shield" label="Cameras Online" value={`${kpis.uptime}%`} onClick={() => setSheet("report")} />
+        <Kpi variant="mini" icon="siren" label="Critical Incidents" value={count(kpis.critical)} color="#f0444a" onClick={() => setSheet("alerts")} />
       </div>
 
       <div className="row c-sec1">
-        <Card id="live" className={f("live")} title="Live Camera Feeds" extra={<button type="button" className="view-all" onClick={() => setSheet("all")}>View All</button>}>
+        <Card id="live" className={f("live")} title="Camera Feeds" extra={<button type="button" className="view-all" onClick={() => setSheet("all")}>View All</button>}>
           <div className="cams">
-            {cams.map((c) => (
-              <button key={c.id} type="button" className="cam" onClick={() => setCam(c)} aria-label={`Open ${c.name} camera`}>
-                <img src={c.src} alt="" />
-                <span className="live"><i />Live</span>
+            {feeds.map((c) => (
+              <button key={c.id} type="button" className="cam" onClick={() => openCamera(c)} aria-label={`Open ${c.name} camera`}>
+                <Shot src={c.imageUrl} alt="" className="" />
+                <span className="live"><i />{c.status === "ONLINE" ? "Online" : titleCase(c.status)}</span>
                 <span className="cam-cap">{c.name}<Ico name="expand" /></span>
               </button>
             ))}
@@ -142,23 +159,22 @@ export function SecurityDashboard() {
             <div className="map-view">
               <div className="map-layer" style={{ transform: `scale(${zoom})` }}>
                 <img src="/dash/site-map.jpg" alt="Sports City site map" className="map-img" />
-                {pins.map((p) => (
-                  <button
-                    type="button"
-                    key={p.label}
-                    className={`map-pin ${p.alert ? "alert" : ""} ${zone !== "All Zones" && p.zone !== zone ? "dim" : ""}`}
-                    style={{ left: `${p.x}%`, top: `${p.y}%` }}
-                    data-tip={p.label}
-                    aria-label={p.label}
-                    onClick={() => {
-                      const c = camById(p.label.split(" ")[0]);
-                      if (c) setCam(c);
-                      else setSheet("map");
-                    }}
-                  >
-                    <Ico name={p.alert ? "alert" : "camera"} />
-                  </button>
-                ))}
+                {pins.map((p) => {
+                  const label = `${p.reference} · ${p.name}${p.alert ? " · open alert" : ""}`;
+                  return (
+                    <button
+                      type="button"
+                      key={p.id}
+                      className={`map-pin ${p.alert ? "alert" : ""} ${zone !== ALL && p.zone !== zone ? "dim" : ""}`}
+                      style={{ left: `${p.mapX}%`, top: `${p.mapY}%` }}
+                      data-tip={label}
+                      aria-label={label}
+                      onClick={() => openCamera(p)}
+                    >
+                      <Ico name={p.alert ? "alert" : "camera"} />
+                    </button>
+                  );
+                })}
               </div>
               <div className="map-zoom">
                 <button type="button" aria-label="Zoom in" onClick={() => setZoom((z) => Math.min(2, z + 0.25))}><Ico name="zoomIn" /></button>
@@ -175,74 +191,84 @@ export function SecurityDashboard() {
         </Card>
         <Card id="incidents" className={f("incidents")} title="Recent Alerts" extra={<button type="button" className="view-all" onClick={() => setSheet("alerts")}>View All</button>}>
           <ul className="list tight scroll alerts">
-            {ALERTS.filter((a) => !acked.includes(a.id)).map((a) => (
+            {openAlerts.map((a) => (
               <li key={a.id}>
-                <button type="button" className={`al-row ${a.tone}`} onClick={() => setAlertId(a.id)}>
-                  <img src={a.src} alt="" className="thumb" />
+                <button type="button" className={`al-row ${severityTone(a.severity)}`} onClick={() => setAlertId(a.id)}>
+                  <Shot src={a.camera?.imageUrl} alt="" className="thumb" />
                   <div className="al-t">
-                    <Ico name={a.icon} className={`al-ico ${a.tone}`} />
-                    <span><b>{a.title}</b><small>{a.where} · {a.cam}</small></span>
+                    <Ico name={KIND_ICONS[a.kind] ?? "alert"} className={`al-ico ${severityTone(a.severity)}`} />
+                    <span><b>{a.kind}</b><small>{a.location}{a.camera ? ` · ${a.camera.reference}` : ""}</small></span>
                   </div>
-                  <span className="when">{a.when}</span>
+                  <span className="when">{timeAgo(a.createdAt)}</span>
                 </button>
               </li>
             ))}
-            {acked.length === ALERTS.length && <li className="empty">All recent alerts acknowledged</li>}
+            {openAlerts.length === 0 && <li className="empty">All alerts acknowledged</li>}
           </ul>
         </Card>
       </div>
 
       <div className="row c-sec2" id="analytics">
-        <Card id="people" className={f("people")} title="Crowd Density Analysis" extra={<Pick options={["Live", "Peak Hour", "Daily Avg"]} value={crowd} onChange={setCrowd} />}>
+        <Card id="people" className={f("people")} title="Crowd Density Analysis" extra={<Pick options={CROWD_VIEWS} value={crowd} onChange={setCrowd} />}>
           <div className="heat">
-            <img src="/dash/heatmap.jpg" alt="Crowd heatmap" className={`fade-in heat-${crowd.replace(/\s/g, "").toLowerCase()}`} key={crowd} />
+            <p className="heat-note">{crowdNote}</p>
+            <div className="heat-grid fade-in" key={crowd}>
+              {crowdRows.length === 0 && <p className="empty">No zones with a set capacity yet</p>}
+              {crowdRows.map((z) => (
+                <div key={z.zone} className="heat-cell" style={{ background: heatColor(z.level) }} title={`${z.zone}: ${z.label}`}>
+                  <span>{z.zone}</span>
+                  <b>{z.label}</b>
+                </div>
+              ))}
+            </div>
             <div className="heat-scale"><span>Low</span><i /><span>High</span></div>
           </div>
         </Card>
-        <Card title="People Flow Trend" extra={<Pick options={Object.keys(FLOW)} value={flow} onChange={setFlow} />}>
+        <Card title="People Flow Trend" sub="Gate entries per hour" extra={<KeyPick options={RANGES} value={range} onChange={setRange} />}>
           <Line
-            key={flow}
+            key={range}
             legend={false}
-            labels={["6AM", "7:30AM", "9AM", "10:30AM", "12PM", "1:30PM", "3PM", "4:30PM", "6PM", "7:30PM", "9PM"]}
-            tick={2}
-            axis={["2K", "1.5K", "1K", "500", "0"]}
-            max={2000}
-            series={[{ name: "People", color: "#f2b81d", values: fl.values }]}
+            labels={flow.labels}
+            tick={4}
+            axis={flowScale.axis}
+            max={flowScale.max}
+            fmt={(v) => `${count(v)} entries`}
+            series={[{ name: "People", color: "#f2b81d", values: flow.people }]}
           />
         </Card>
-        <Card id="vehicles" className={f("vehicles")} title="Vehicle Movement" extra={<Pick options={Object.keys(VEHICLE)} value={veh} onChange={setVeh} />}>
+        <Card id="vehicles" className={f("vehicles")} title="Vehicle Movement" sub={RANGES[range]}>
           <Cols
-            key={veh}
-            labels={["6AM", "7AM", "9AM", "10AM", "12PM", "1PM", "3PM", "4PM", "6PM", "8PM"]}
+            key={range}
+            labels={traffic.labels}
             tick={2}
-            axis={["400", "300", "200", "100", "0"]}
-            max={400}
+            axis={trafficScale.axis}
+            max={trafficScale.max}
             series={[
-              { name: "Entries", color: "#f2b81d", values: v.entries },
-              { name: "Exits", color: "#9a9ea8", values: v.exits },
+              { name: "Entries", color: "#f2b81d", values: traffic.entries },
+              { name: "Exits", color: "#9a9ea8", values: traffic.exits },
             ]}
           />
         </Card>
-        <Card id="access" className={f("access")} title="Access Control Status">
+        <Card id="access" className={f("access")} title="Access Control Status" sub={RANGES[range]}>
           <Donut
-            center="2,840"
+            center={count(access.total)}
             caption="Total Access"
             thick={16}
             stacked
             parts={[
-              { label: "Granted", pct: 85, color: "#22c97a", value: "2,420 · 85%" },
-              { label: "Denied", pct: 11, color: "#f0444a", value: "320 · 11%" },
-              { label: "Pending", pct: 4, color: "#f2b81d", value: "100 · 4%" },
+              { label: "Granted", pct: accessPct(access.granted), color: "#22c97a", value: `${count(access.granted)} · ${accessPct(access.granted)}%` },
+              { label: "Denied", pct: accessPct(access.denied), color: "#f0444a", value: `${count(access.denied)} · ${accessPct(access.denied)}%` },
+              { label: "Other", pct: accessPct(access.other), color: "#f2b81d", value: `${count(access.other)} · ${accessPct(access.other)}%` },
             ]}
           />
         </Card>
-        <Card title="AI Detection">
+        <Card title="Detection Summary" sub={RANGES[range]}>
           <ul className="list tight scroll">
             {[
-              ["scan", "green", "Face Recognition", "248 matches today"],
-              ["box", "orange", "Object Detection", "12 suspicious objects"],
-              ["activity", "blue", "Behavior Analysis", "5 unusual activities"],
-              ["plate", "purple", "License Plate Recognition", "342 vehicles tracked"],
+              ["scan", "green", "Access scans", `${count(access.total)} at the gates`],
+              ["alert", "orange", "Denied entries", `${count(access.denied)} turned away`],
+              ["activity", "blue", "Open incidents", `${count(incidents.length)} being handled`],
+              ["plate", "purple", "Vehicles", `${count(kpis.vehicles)} entered`],
             ].map(([icon, c, t, d]) => (
               <li key={t}>
                 <span className={`li-ico sq ${c}`}><Ico name={icon} /></span>
@@ -254,22 +280,23 @@ export function SecurityDashboard() {
       </div>
 
       <div className="row c-sec3">
-        <Card title="Recent Security Events" extra={<button type="button" className="view-all" onClick={() => setSheet("report")}>View All</button>}>
+        <Card title="Recent Security Events" extra={<button type="button" className="view-all" onClick={() => setSheet("alerts")}>View All</button>}>
           <div className="table-wrap">
             <table className="d">
               <thead>
                 <tr>{["Time", "", "Camera", "Location", "Event Type", "Person/Vehicle", "Status"].map((h, i) => <th key={h + i}>{h}</th>)}</tr>
               </thead>
               <tbody>
-                {events.map(([time, src, id, loc, type, who, status, tone]) => (
-                  <tr key={time + id} className="click" onClick={() => setCam(camById(id) ?? { id, name: loc, src, zone: loc })}>
-                    <td>{time}</td>
-                    <td><img src={src} alt="" className="thumb sm" /></td>
-                    <td>{id}</td>
-                    <td>{loc}</td>
-                    <td>{type}</td>
-                    <td>{who}</td>
-                    <td><Badge tone={tone}>{status}</Badge></td>
+                {events.length === 0 && <tr><td colSpan={7} className="empty">No security events yet</td></tr>}
+                {events.map((e) => (
+                  <tr key={e.id} className="click" onClick={() => setAlertId(e.id)}>
+                    <td>{clock(e.createdAt)}</td>
+                    <td><Shot src={e.camera?.imageUrl} alt="" className="thumb sm" /></td>
+                    <td>{e.camera?.reference ?? "—"}</td>
+                    <td>{e.location}</td>
+                    <td>{e.kind}</td>
+                    <td>{e.subject ?? "N/A"}</td>
+                    <td><Badge tone={alertBadge(e)}>{titleCase(e.status)}</Badge></td>
                   </tr>
                 ))}
               </tbody>
@@ -278,50 +305,51 @@ export function SecurityDashboard() {
         </Card>
         <Card id="reports" className={f("reports")} title="Security Insights">
           <ul className="list tight scroll insights">
-            {[
-              ["arrowUp", "green", "Crowd density at stadium is 35% higher than usual."],
-              ["alert", "red", "2 unauthorized access attempts detected today."],
-              ["clock", "blue", "Average response time: 2.3 minutes."],
-              ["growth", "green", "Vehicle entries increased by 28% this week."],
-              ["sparkle", "purple", "AI detected 5 repeat suspicious individuals."],
-            ].map(([icon, c, t]) => (
-              <li key={t}>
-                <span className={`dot-ico ${c}`}><Ico name={icon} /></span>
-                <div><b>{t}</b></div>
+            {insights.map((item) => (
+              <li key={item.text}>
+                <span className={`dot-ico ${item.tone}`}><Ico name={item.icon} /></span>
+                <div><b>{item.text}</b></div>
               </li>
             ))}
           </ul>
         </Card>
         <Card id="settings" className={f("settings")} title="Quick Actions">
           <div className="qa tiles">
-            <Quick icon="camera" label="View Live Cameras" onClick={() => setSheet("all")} />
+            <Quick icon="camera" label="View Cameras" onClick={() => setSheet("all")} />
             <Quick icon="bars" label="Generate Report" onClick={() => setSheet("report")} />
             {ro ? <Quick icon="pin" label="Site Map" onClick={() => setSheet("map")} /> : <Quick icon="lock" label={lockdown ? "End Lockdown" : "Lockdown Mode"} onClick={() => setSheet("lock")} />}
-            <Quick icon="alert" label="Incident Management" onClick={() => setSheet("alerts")} />
+            <Quick icon="alert" label="Incident Management" to="/security?view=records" />
           </div>
         </Card>
       </div>
 
-      <Sheet open={!!cam} title={cam ? `${cam.name} · ${cam.id}` : ""} onClose={() => setCam(null)} wide>
+      <Sheet open={!!cam} title={cam ? `${cam.name} · ${cam.reference}` : ""} onClose={() => setCamId(null)} wide>
         {cam && (
           <>
             <div className="cam-big">
-              <img src={cam.src} alt={cam.name} className="big-shot" />
-              <span className="live"><i />Live</span>
+              <Shot src={cam.imageUrl} alt={cam.name} className="big-shot" />
+              {cam.status === "ONLINE" && <span className="live"><i />Online</span>}
             </div>
             <div className="sheet-gap" />
-            <Fields rows={[["Camera", cam.id], ["Zone", cam.zone], ["Status", <Badge key="s" tone="green">Online</Badge>]]} />
-            {cam.credit && <p className="credit">{cam.credit}</p>}
+            <Fields
+              rows={[
+                ["Camera", cam.reference],
+                ["Zone", cam.zone],
+                ["Location", cam.location ?? "—"],
+                ["Status", <Badge key="s" tone={camTone(cam.status)}>{titleCase(cam.status)}</Badge>],
+                ["Open alert", cam.alert ? "Yes" : "No"],
+              ]}
+            />
           </>
         )}
       </Sheet>
-      <Sheet open={sheet === "all"} title="Live cameras" onClose={() => setSheet(null)} wide>
+      <Sheet open={sheet === "all"} title={`All cameras · ${kpis.camerasOnline}/${kpis.cameras} online`} onClose={() => setSheet(null)} wide>
         <div className="cams all">
-          {cams.map((c) => (
-            <button key={c.id} type="button" className="cam" onClick={() => { setSheet(null); setCam(c); }}>
-              <img src={c.src} alt="" />
-              <span className="live"><i />Live</span>
-              <span className="cam-cap">{c.name} · {c.id}<Ico name="expand" /></span>
+          {cameras.map((c) => (
+            <button key={c.id} type="button" className="cam" onClick={() => { setSheet(null); openCamera(c); }}>
+              <Shot src={c.imageUrl} alt="" className="" />
+              <span className="live"><i />{c.status === "ONLINE" ? "Online" : titleCase(c.status)}</span>
+              <span className="cam-cap">{c.name} · {c.reference}<Ico name="expand" /></span>
             </button>
           ))}
         </div>
@@ -329,78 +357,123 @@ export function SecurityDashboard() {
       <Sheet open={sheet === "map"} title="Site map" onClose={() => setSheet(null)} wide>
         <img src="/dash/site-map.jpg" alt="Sports City site map" className="big-shot" />
       </Sheet>
-      <Sheet open={sheet === "lock"} title="Lockdown mode" onClose={() => setSheet(null)}>
+      <Sheet open={sheet === "lock"} title="Lockdown mode" onClose={() => { setSheet(null); startLockdown.reset(); endLockdown.reset(); }}>
         <p className="sub">
           {lockdown
-            ? "A lockdown drill is running. End it to return to normal monitoring."
-            : "Start a lockdown drill? This prototype is not connected to gate hardware, so it only shows the drill banner. In production this would lock all gates and alert the response team."}
+            ? `${lockdown.drill ? "A lockdown drill" : "A lockdown"} is running for ${lockdown.scope}. End it to return to normal monitoring.`
+            : "The security team is notified and the lockdown is logged. Gate hardware is not connected, so gates must be closed by staff on site."}
         </p>
+        {!lockdown && (
+          <form className="lock-form" onSubmit={(e) => { e.preventDefault(); toggleLockdown(); }}>
+            <label>
+              <span>Reason</span>
+              <input required maxLength={200} value={lockForm.reason} placeholder="e.g. Suspicious package at Gate 3" onChange={(e) => setLockForm((s) => ({ ...s, reason: e.target.value }))} />
+            </label>
+            <label>
+              <span>Scope</span>
+              <select value={lockForm.scope} onChange={(e) => setLockForm((s) => ({ ...s, scope: e.target.value }))}>
+                {LOCKDOWN_SCOPES.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </label>
+            <label className="lock-check">
+              <input type="checkbox" checked={lockForm.drill} onChange={(e) => setLockForm((s) => ({ ...s, drill: e.target.checked }))} />
+              <span>Drill only (practice, not a real threat)</span>
+            </label>
+          </form>
+        )}
         <div className="sheet-gap" />
         <div className="sheet-actions">
           {lockdown ? (
-            <button type="button" className="btn-gold" onClick={() => { setLockdown(false); setSheet(null); }}><Ico name="check" className="pop-ico" />End lockdown</button>
+            <button type="button" className="btn-gold" disabled={endLockdown.isPending} onClick={toggleLockdown}><Ico name="check" className="pop-ico" />End lockdown</button>
           ) : (
-            <button type="button" className="panel-btn danger" onClick={() => { setLockdown(true); setSheet(null); }}><Ico name="lock" className="pop-ico" />Start lockdown drill</button>
+            <button type="button" className="panel-btn danger" disabled={startLockdown.isPending || !lockForm.reason.trim()} onClick={toggleLockdown}>
+              <Ico name="lock" className="pop-ico" />{lockForm.drill ? "Start lockdown drill" : "Start lockdown"}
+            </button>
           )}
           <button type="button" className="panel-btn" onClick={() => setSheet(null)}><Ico name="x" className="pop-ico" />Cancel</button>
         </div>
+        {lockError && <p className="act-err" role="alert">{apiErrorMessage(lockError, "Could not change lockdown.")}</p>}
       </Sheet>
-      <Sheet open={sheet === "alerts"} title="All alerts" onClose={() => setSheet(null)}>
+      <Sheet open={sheet === "alerts"} title="Alerts & incidents" onClose={() => setSheet(null)}>
         <ul className="list tight alerts">
-          {ALERTS.map((a) => (
+          {alerts.length === 0 && <li className="empty">No open alerts</li>}
+          {alerts.map((a) => (
             <li key={a.id}>
-              <button type="button" className={`al-row wide ${a.tone}`} onClick={() => { setSheet(null); setAlertId(a.id); }}>
-                <img src={a.src} alt="" className="thumb" />
+              <button type="button" className={`al-row wide ${severityTone(a.severity)}`} onClick={() => { setSheet(null); setAlertId(a.id); }}>
+                <Shot src={a.camera?.imageUrl} alt="" className="thumb" />
                 <div className="al-t">
-                  <Ico name={a.icon} className={`al-ico ${a.tone}`} />
-                  <span><b>{a.title}</b><small>{a.where} · {a.cam} · {a.when}</small></span>
+                  <Ico name={KIND_ICONS[a.kind] ?? "alert"} className={`al-ico ${severityTone(a.severity)}`} />
+                  <span><b>{a.kind}</b><small>{a.location}{a.camera ? ` · ${a.camera.reference}` : ""} · {timeAgo(a.createdAt)}</small></span>
                 </div>
-                <Badge tone={acked.includes(a.id) ? "green" : a.tone === "red" ? "red" : "gold"}>{acked.includes(a.id) ? "Acknowledged" : "Open"}</Badge>
+                <Badge tone={alertBadge(a)}>{titleCase(a.status)}</Badge>
               </button>
             </li>
           ))}
         </ul>
+        <div className="sheet-gap" />
+        <p className="panel-h">Open incidents</p>
+        <ul className="list tight">
+          {incidents.length === 0 && <li className="empty">No open incidents</li>}
+          {incidents.map((i) => (
+            <li key={i.id}>
+              <span className={`li-ico ${severityTone(i.severity)}`}><Ico name="siren" /></span>
+              <div><b>{i.title}</b><small>{i.severity} · {i.status} · {timeAgo(i.createdAt)}</small></div>
+            </li>
+          ))}
+        </ul>
+        <div className="sheet-gap" />
+        <div className="sheet-actions">
+          <Link to="/security?view=records" className="btn-gold"><Ico name="file" className="pop-ico" />{ro ? "View incidents" : "Log or update incidents"}</Link>
+        </div>
       </Sheet>
-      <Sheet open={!!alert} title={alert ? `${alert.title} · ${alert.id}` : ""} onClose={() => setAlertId(null)} wide>
+      <Sheet open={!!alert} title={alert ? `${alert.kind} · ${alert.reference}` : ""} onClose={() => { setAlertId(null); alertStatus.reset(); }} wide>
         {alert && (
           <>
             <div className="cam-big">
-              <img src={alert.src} alt={alert.where} className="big-shot" />
-              <span className="live"><i />Live</span>
+              <Shot src={alert.camera?.imageUrl} alt={alert.location} className="big-shot" />
             </div>
             <div className="sheet-gap" />
             <Fields
               rows={[
-                ["Location", alert.where],
-                ["Camera", alert.cam],
-                ["Detected", alert.when],
-                ["Status", <Badge key="s" tone={acked.includes(alert.id) ? "green" : "red"}>{acked.includes(alert.id) ? "Acknowledged" : "Open"}</Badge>],
+                ["Location", alert.location],
+                ["Camera", alert.camera ? `${alert.camera.name} · ${alert.camera.reference}` : "—"],
+                ["Severity", <Badge key="v" tone={severityTone(alert.severity) === "red" ? "red" : "gold"}>{alert.severity}</Badge>],
+                ["Person / vehicle", alert.subject ?? "N/A"],
+                ["Detected", `${clock(alert.createdAt)} · ${day(alert.createdAt)}`],
+                ["Status", <Badge key="s" tone={alertBadge(alert)}>{titleCase(alert.status)}</Badge>],
               ]}
             />
             <div className="sheet-actions">
-              {!acked.includes(alert.id) && !ro && (
-                <button type="button" className="btn-gold" onClick={() => { ack(alert.id); setAlertId(null); }}><Ico name="check" className="pop-ico" />Acknowledge</button>
+              {alert.status === "OPEN" && !ro && (
+                <button type="button" className="btn-gold" disabled={alertStatus.isPending} onClick={() => move(alert, "ACKNOWLEDGED")}><Ico name="check" className="pop-ico" />Acknowledge</button>
               )}
-              <button type="button" className="panel-btn" onClick={() => { setAlertId(null); setCam(camById(alert.cam) ?? { id: alert.cam, name: alert.where, src: alert.src, zone: alert.where }); }}><Ico name="camera" className="pop-ico" />View camera</button>
+              {alert.status !== "RESOLVED" && !ro && (
+                <button type="button" className="panel-btn" disabled={alertStatus.isPending} onClick={() => move(alert, "RESOLVED")}><Ico name="flag" className="pop-ico" />Resolve</button>
+              )}
+              {cameraOf(alert) && (
+                <button type="button" className="panel-btn" onClick={() => { const c = cameraOf(alert)!; setAlertId(null); openCamera(c); }}><Ico name="camera" className="pop-ico" />View camera</button>
+              )}
               <button type="button" className="panel-btn" onClick={() => { setAlertId(null); setSheet("alerts"); }}><Ico name="bars" className="pop-ico" />All alerts</button>
             </div>
+            {alertStatus.isError && <p className="act-err" role="alert">{apiErrorMessage(alertStatus.error, "Could not update the alert.")}</p>}
           </>
         )}
       </Sheet>
-      <Sheet open={sheet === "report"} title="Security report · Wed, 01 Oct 2025" onClose={() => setSheet(null)}>
+      <Sheet open={sheet === "report"} title={`Security report · ${day(data.window.from)}`} onClose={() => setSheet(null)}>
         <Fields
           rows={[
-            ["Cameras online", "248"],
-            ["Active alerts", String(OPEN_BASE - acked.length)],
-            ["Critical incidents", "5"],
-            ["People detected", "1,248"],
-            ["Vehicles tracked", "342"],
-            ["Access granted / denied", "2,420 / 320"],
-            ["System uptime", "99.8%"],
+            ["Cameras online", `${kpis.camerasOnline} of ${kpis.cameras}`],
+            ["Active alerts", count(kpis.activeAlerts)],
+            ["Acknowledged alerts", count(kpis.acknowledgedAlerts)],
+            ["Critical incidents", count(kpis.critical)],
+            ["Gate entries", count(kpis.people)],
+            ["Vehicles tracked", count(kpis.vehicles)],
+            ["Access granted / denied", `${count(access.granted)} / ${count(access.denied)}`],
+            ["Lockdown", lockdown ? `Active since ${clock(lockdown.startedAt)}` : "None"],
           ]}
         />
         <div className="sheet-gap" />
-        <button type="button" className="panel-btn" onClick={() => window.print()}><Ico name="download" className="pop-ico" />Print report</button>
+        <button type="button" className="panel-btn no-print" onClick={() => window.print()}><Ico name="download" className="pop-ico" />Print report</button>
       </Sheet>
     </div>
   );

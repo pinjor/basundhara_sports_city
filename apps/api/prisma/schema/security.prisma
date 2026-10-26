@@ -1,0 +1,61 @@
+// ---------------------------------------------------------------------------
+// Security & surveillance: cameras, alerts and lockdowns
+// ---------------------------------------------------------------------------
+
+model Camera {
+  id          String   @id @default(uuid())
+  reference   String   @unique
+  status      String
+  name        String
+  zone        String
+  location    String
+  imageUrl    String?
+  mapX        Decimal? @db.Decimal(5, 2)
+  mapY        Decimal? @db.Decimal(5, 2)
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  alerts SecurityAlert[]
+
+  @@index([zone, status])
+  @@map("cameras")
+}
+
+model SecurityAlert {
+  id               String    @id @default(uuid())
+  reference        String    @unique
+  status           String
+  kind             String
+  severity         String
+  cameraId         String?
+  camera           Camera?   @relation(fields: [cameraId], references: [id])
+  location         String
+  subject          String?
+  acknowledgedAt   DateTime?
+  acknowledgedById String?
+  resolvedAt       DateTime?
+  notes            String?
+  createdById      String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([status, createdAt])
+  @@map("security_alerts")
+}
+
+model LockdownEvent {
+  id          String    @id @default(uuid())
+  reference   String    @unique
+  status      String
+  reason      String
+  scope       String
+  drill       Boolean   @default(true)
+  endedAt     DateTime?
+  createdById String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([status])
+  @@map("lockdown_events")
+}

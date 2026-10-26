@@ -8,7 +8,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: bsc
-      POSTGRES_PASSWORD: bsc_dev_password
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-bsc_dev_password}
       POSTGRES_DB: bsc
     ports:
       - "18432:5432"
@@ -33,12 +33,28 @@ services:
       context: .
       dockerfile: apps/api/Dockerfile
     restart: unless-stopped
+    # Local defaults. For a hosted deployment set these in the environment or an .env file
+    # (see .env.production.example); NODE_ENV=production refuses the default JWT secret.
     environment:
-      DATABASE_URL: postgresql://bsc:bsc_dev_password@postgres:5432/bsc?schema=public
+      NODE_ENV: ${NODE_ENV:-development}
+      DATABASE_URL: postgresql://bsc:${POSTGRES_PASSWORD:-bsc_dev_password}@postgres:5432/bsc?schema=public
       REDIS_URL: redis://redis:6379
-      JWT_SECRET: change-me-in-production
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      JWT_ACCESS_TTL_SECONDS: ${JWT_ACCESS_TTL_SECONDS:-900}
+      JWT_REFRESH_TTL_DAYS: ${JWT_REFRESH_TTL_DAYS:-30}
       PORT: "4000"
-      TICKETING_SANDBOX_PAYMENTS: "true"
+      TICKETING_SANDBOX_PAYMENTS: ${TICKETING_SANDBOX_PAYMENTS:-true}
+      SEED_DEMO_DATA: ${SEED_DEMO_DATA:-true}
+      BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-}
+      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-}
+      CORS_ORIGINS: ${CORS_ORIGINS:-*}
+      PUBLIC_ASSET_URL: ${PUBLIC_ASSET_URL:-http://127.0.0.1:18480}
+      # Requests reach the API through the web container's nginx, one proxy hop.
+      TRUST_PROXY: ${TRUST_PROXY:-1}
+      # Sign-in attempts per IP per minute. Raised locally for the QA scripts; production default is 10.
+      AUTH_RATE_LIMIT: ${AUTH_RATE_LIMIT:-600}
+      API_RATE_LIMIT: ${API_RATE_LIMIT:-3000}
+      API_DOCS: ${API_DOCS:-true}
     ports:
       - "18481:4000"
     depends_on:
@@ -50,7 +66,7 @@ services:
           "CMD",
           "bun",
           "-e",
-          "fetch('http://127.0.0.1:4000/api').then(()=>process.exit(0)).catch(()=>process.exit(1))",
+          "fetch('http://127.0.0.1:4000/api/health').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
         ]
       interval: 5s
       timeout: 5s

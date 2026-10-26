@@ -1,0 +1,226 @@
+// ---------------------------------------------------------------------------
+// Finance & Accounting. Registry entities share: reference, status, createdById, timestamps.
+// Posted documents write a balanced JournalEntry; reports read only the journal.
+// ---------------------------------------------------------------------------
+
+model Account {
+  id          String    @id @default(uuid())
+  reference   String    @unique
+  status      String
+  code        String    @unique
+  name        String
+  /// Asset, Liability, Equity, Income, Expense
+  type        String
+  parentId    String?
+  parent      Account?  @relation("AccountTree", fields: [parentId], references: [id])
+  children    Account[] @relation("AccountTree")
+  description String    @default("")
+  createdById String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  lines    JournalLine[]
+  budgets  Budget[]
+  expenses Expense[]
+  invoices Invoice[]
+
+  @@map("accounts")
+}
+
+model JournalEntry {
+  id         String   @id @default(uuid())
+  reference  String   @unique
+  date       DateTime @db.Date
+  memo       String
+  /// Registry entity key of the document that produced the entry, e.g. "invoice".
+  sourceType String
+  sourceId   String
+  reversalOf String?
+  createdAt  DateTime @default(now())
+
+  lines JournalLine[]
+
+  @@index([sourceType, sourceId])
+  @@index([date])
+  @@map("journal_entries")
+}
+
+model JournalLine {
+  id        String       @id @default(uuid())
+  entryId   String
+  entry     JournalEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  accountId String
+  account   Account      @relation(fields: [accountId], references: [id])
+  debitBdt  Decimal      @default(0) @db.Decimal(14, 2)
+  creditBdt Decimal      @default(0) @db.Decimal(14, 2)
+
+  @@index([accountId])
+  @@map("journal_lines")
+}
+
+model Budget {
+  id          String   @id @default(uuid())
+  reference   String   @unique
+  status      String
+  name        String
+  department  String
+  period      String
+  accountId   String?
+  account     Account? @relation(fields: [accountId], references: [id])
+  amountBdt   Decimal  @db.Decimal(14, 2)
+  spentBdt    Decimal  @default(0) @db.Decimal(14, 2)
+  notes       String   @default("")
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("budgets")
+}
+
+model Fund {
+  id          String   @id @default(uuid())
+  reference   String   @unique
+  status      String
+  name        String
+  source      String
+  period      String
+  amountBdt   Decimal  @db.Decimal(14, 2)
+  notes       String   @default("")
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("funds")
+}
+
+/// Shared by finance (FINANCIAL) and procurement (WORKFLOW, PURCHASE) approval registers.
+model ApprovalRequest {
+  id          String    @id @default(uuid())
+  reference   String    @unique
+  status      String
+  category    String
+  subject     String
+  requester   String
+  approver    String
+  step        String    @default("")
+  amountBdt   Decimal?  @db.Decimal(14, 2)
+  comments    String    @default("")
+  decidedBy   String?
+  decidedAt   DateTime?
+  /// Document waiting on this approval, e.g. "purchaseRequest".
+  sourceType  String    @default("")
+  sourceId    String?
+  createdById String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([category, status])
+  @@index([sourceType, sourceId])
+  @@map("approval_requests")
+}
+
+model RevenueEntry {
+  id          String   @id @default(uuid())
+  reference   String   @unique
+  status      String
+  stream      String
+  source      String
+  description String
+  period      String
+  receivedOn  DateTime @db.Date
+  amountBdt   Decimal  @db.Decimal(14, 2)
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([stream, status])
+  @@index([receivedOn])
+  @@map("revenue_entries")
+}
+
+model Expense {
+  id          String   @id @default(uuid())
+  reference   String   @unique
+  status      String
+  payee       String
+  category    String
+  accountId   String?
+  account     Account? @relation(fields: [accountId], references: [id])
+  spentOn     DateTime @db.Date
+  amountBdt   Decimal  @db.Decimal(14, 2)
+  notes       String   @default("")
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([spentOn])
+  @@map("expenses")
+}
+
+model TaxRate {
+  id          String   @id @default(uuid())
+  reference   String   @unique
+  status      String
+  name        String
+  ratePercent Decimal  @db.Decimal(6, 2)
+  /// Sales, Purchases, Both
+  appliesTo   String
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  invoices Invoice[]
+
+  @@map("tax_rates")
+}
+
+model Invoice {
+  id          String   @id @default(uuid())
+  reference   String   @unique
+  status      String
+  /// RECEIVABLE (customer invoice) or PAYABLE (vendor bill)
+  kind        String
+  party       String
+  issuedOn    DateTime @db.Date
+  dueOn       DateTime @db.Date
+  accountId   String?
+  account     Account? @relation(fields: [accountId], references: [id])
+  taxRateId   String?
+  taxRate     TaxRate? @relation(fields: [taxRateId], references: [id])
+  subtotalBdt Decimal  @db.Decimal(14, 2)
+  taxBdt      Decimal  @default(0) @db.Decimal(14, 2)
+  totalBdt    Decimal  @default(0) @db.Decimal(14, 2)
+  paidBdt     Decimal  @default(0) @db.Decimal(14, 2)
+  notes       String   @default("")
+  /// Document that raised the bill, e.g. an approved invoice match.
+  sourceType  String   @default("")
+  sourceId    String?
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  payments Payment[]
+
+  @@index([kind, status])
+  @@map("invoices")
+}
+
+model Payment {
+  id          String   @id @default(uuid())
+  reference   String   @unique
+  status      String
+  invoiceId   String
+  invoice     Invoice  @relation(fields: [invoiceId], references: [id])
+  party       String
+  /// IN for receivables, OUT for payables
+  direction   String
+  method      String
+  paidOn      DateTime @db.Date
+  amountBdt   Decimal  @db.Decimal(14, 2)
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([invoiceId])
+  @@map("payments")
+}

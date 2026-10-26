@@ -130,7 +130,7 @@ export function CalendarPage() {
         </div>
       </header>
 
-      <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="stat-row mb-6">
         <StatTile label="Bookings" value={bookings.length} tone="gold" />
         <StatTile label="Confirmed" value={confirmed} tone="teal" />
         <StatTile
@@ -174,7 +174,7 @@ export function CalendarPage() {
 function DayBoard({ day, bookings }: { day: string; bookings: BookingDto[] }) {
   const height = HOURS.length * HOUR_PX;
   return (
-    <div className="overflow-hidden rounded-xl border border-gold/25 bg-surface-2 shadow-gold-sm">
+    <div className="panel overflow-hidden">
       <div className="border-b border-gold/15 px-5 py-3">
         <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-gold/70">Day board</p>
         <h3 className="mt-1 font-display text-lg text-text">{prettyDay(day)}</h3>
@@ -202,7 +202,7 @@ function DayBoard({ day, bookings }: { day: string; bookings: BookingDto[] }) {
               return (
                 <Link
                   key={booking.id}
-                  to={booking.eventPack ? `/?event=${booking.eventPack.id}` : "/bookings"}
+                  to={booking.eventPack ? `/?view=events&event=${booking.eventPack.id}` : "/bookings"}
                   className={`absolute left-3 right-3 overflow-hidden rounded-md border px-3 py-2 ${toneClass(booking.status)}`}
                   style={{ top: top + 4, height: heightPx }}
                 >
@@ -240,7 +240,7 @@ function WeekGrid({
         const items = bookings.filter((b) => dayKey(b.date) === day).sort((a, b) => a.timeSlotStart.localeCompare(b.timeSlotStart));
         const active = day === focus;
         return (
-          <section key={day} className={`min-h-[420px] rounded-xl border bg-surface-2 p-3 ${active ? "border-gold shadow-gold-sm" : "border-gold/20"}`}>
+          <section key={day} className={`panel min-h-[420px] p-3 ${active ? "!border-gold" : ""}`}>
             <button type="button" onClick={() => onPick(day)} className="mb-3 w-full text-left">
               <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-gold/70">
                 {parseDate(day).toLocaleDateString(undefined, { weekday: "short" })}
@@ -253,7 +253,7 @@ function WeekGrid({
               {items.map((booking) => (
                 <Link
                   key={booking.id}
-                  to={booking.eventPack ? `/?event=${booking.eventPack.id}` : "/bookings"}
+                  to={booking.eventPack ? `/?view=events&event=${booking.eventPack.id}` : "/bookings"}
                   className={`block rounded-md border px-2 py-1.5 ${toneClass(booking.status)}`}
                 >
                   <div className="text-[10px] text-gold/80">
@@ -285,7 +285,7 @@ function ResourceTimeline({ day, bookings, facilities }: { day: string; bookings
   }, [bookings, facilities]);
 
   return (
-    <div className="overflow-hidden rounded-xl border border-gold/25 bg-surface-2 shadow-gold-sm">
+    <div className="panel overflow-hidden">
       <div className="border-b border-gold/15 px-5 py-3">
         <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-gold/70">Resource timeline</p>
         <h3 className="mt-1 font-display text-lg text-text">{prettyDay(day)} · venue lanes</h3>
@@ -322,7 +322,7 @@ function ResourceTimeline({ day, bookings, facilities }: { day: string; bookings
                     return (
                       <Link
                         key={booking.id}
-                        to={booking.eventPack ? `/?event=${booking.eventPack.id}` : "/bookings"}
+                        to={booking.eventPack ? `/?view=events&event=${booking.eventPack.id}` : "/bookings"}
                         className={`absolute top-2 bottom-2 overflow-hidden rounded border px-2 py-1 ${toneClass(booking.status)}`}
                         style={{ left: `${leftPct}%`, width: `${widthPct}%` }}
                       >

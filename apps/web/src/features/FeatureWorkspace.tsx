@@ -31,6 +31,7 @@ import { resolveFlow, type FlowDef } from "./flows";
 import { Button } from "../components/ui/Button";
 import { Field, SelectInput, TextInput } from "../components/ui/Field";
 import { useToast } from "../components/ui/Toast";
+import { TicketQr } from "../components/tickets/TicketQr";
 import { useAuthStore } from "../store/auth";
 import { useCreateZone, useSetZoneStatus, useZones } from "../api/zones";
 import { useCreateFacility, useFacilities, useSetFacilityStatus } from "../api/facilities";
@@ -128,7 +129,7 @@ function Done({
           Module overview
         </Link>
         {packId && (
-          <Link to={`/?event=${packId}`} className="inline-flex items-center rounded-md px-4 py-2 text-sm text-gold hover:text-gold-soft">
+          <Link to={`/?view=events&event=${packId}`} className="inline-flex items-center rounded-md px-4 py-2 text-sm text-gold hover:text-gold-soft">
             Open event operations
           </Link>
         )}
@@ -211,7 +212,7 @@ function FlowBody({
   const toggleGate = useToggleGate();
   const scanGate = useScanGate();
   const { data: gates = [] } = useGates({ type: flow.kind.startsWith("gate") ? flow.type : undefined });
-  const { data: accessLog = [] } = useRecentAccessLog();
+  const { data: accessLog = [], refetch: refetchAccessLog, isFetching: accessLogFetching } = useRecentAccessLog();
   const createVisitor = useCreateVisitor();
   const checkInVisitor = useCheckInVisitor();
   const checkOutVisitor = useCheckOutVisitor();
@@ -249,6 +250,7 @@ function FlowBody({
   const stamp = String(Date.now() % 10000).padStart(4, "0");
   const [name, setName] = useState(feature?.label ? `${feature.label} ${stamp}` : "");
   const [type, setType] = useState(flow.type ?? flow.tier ?? flow.category ?? flow.method ?? "");
+  const [method, setMethod] = useState(flow.method ?? AccessMethod.QR);
   const [capacity, setCapacity] = useState(100);
   const [building, setBuilding] = useState("");
   const [floor, setFloor] = useState("");
@@ -429,7 +431,10 @@ function FlowBody({
               <>
                 <Stepper steps={flow.steps} step={step} />
                 {flow.kind === "gate-log" && (
-                  <p className="text-sm text-text-dim">Every grant and denial writes to the register on the left. Run a QR, RFID or biometric scan from Access Control to add a new line.</p>
+                  <div className="space-y-4">
+                    <p className="text-sm text-text-dim">Every grant and denial writes to the register on the left. Run a QR, RFID or biometric scan from Access Control to add a new line.</p>
+                    <Actions onNext={() => void refetchAccessLog()} nextLabel="Refresh log" busy={accessLogFetching} />
+                  </div>
                 )}
                 {flow.kind === "zone-map" && (
                   <div className="space-y-4">
@@ -936,7 +941,7 @@ function FlowBody({
                 <TextInput value={person} onChange={(e) => setPerson(e.target.value)} placeholder="Name or pass id" />
               </Field>
               <Field label="Method">
-                <SelectInput value={type || flow.method || AccessMethod.QR} onChange={(e) => setType(e.target.value)}>
+                <SelectInput value={method} onChange={(e) => setMethod(e.target.value)}>
                   {Object.values(AccessMethod).map((m) => (
                     <option key={m}>{m}</option>
                   ))}
@@ -954,7 +959,7 @@ function FlowBody({
                   const entry = await scanGate.mutateAsync({
                     id: gate.id,
                     personRef: person,
-                    method: type || flow.method || AccessMethod.QR,
+                    method,
                   });
                   setResult(`${entry.personRef} · ${entry.result}`);
                   setResultExtra(`${entry.method} at ${new Date(entry.timestamp).toLocaleTimeString()}`);
@@ -1050,7 +1055,14 @@ function FlowBody({
           )}
           {step === 2 && (
             <>
-              <p className="rounded-md bg-surface-2 px-3 py-2 font-mono text-sm">QR {resultExtra || "pass issued"}</p>
+              {resultExtra ? (
+                <div className="flex flex-wrap items-center gap-4">
+                  <div className="w-36 shrink-0 overflow-hidden rounded-lg [&_.skeleton]:h-36 [&_.skeleton]:w-full [&_img]:h-auto [&_img]:w-full"><TicketQr value={resultExtra} /></div>
+                  <p className="font-mono text-sm text-text-dim">Pass {resultExtra}</p>
+                </div>
+              ) : (
+                <p className="rounded-md bg-surface-2 px-3 py-2 text-sm">Pass issued.</p>
+              )}
               <Actions onBack={() => setStep(1)} onNext={() => setStep(3)} nextLabel="Continue to check-out" />
             </>
           )}

@@ -70,7 +70,7 @@ export function OutletsPage() {
       ) : (
         <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {outlets.map((outlet) => (
-            <div key={outlet.id} className="rounded-lg border border-border bg-surface-2 p-4">
+            <div key={outlet.id} className="panel p-4">
               <div className="mb-2 flex items-start justify-between">
                 <div>
                   <div className="font-medium text-text">{outlet.name}</div>

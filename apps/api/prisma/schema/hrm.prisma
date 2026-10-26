@@ -1,0 +1,475 @@
+// ---------------------------------------------------------------------------
+// HRM: people, time, pay, planning, volunteers, skills and performance
+// ---------------------------------------------------------------------------
+
+model Department {
+  id          String   @id @default(uuid())
+  reference   String   @unique
+  status      String
+  name        String   @unique
+  head        String
+  location    String   @default("")
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  positions Position[]
+  employees Employee[]
+  plans     WorkforcePlan[]
+
+  @@map("departments")
+}
+
+model Position {
+  id           String     @id @default(uuid())
+  reference    String     @unique
+  status       String
+  title        String
+  departmentId String
+  department   Department @relation(fields: [departmentId], references: [id])
+  grade        String
+  openings     Int
+  createdById  String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  employees  Employee[]
+  candidates Candidate[]
+
+  @@map("positions")
+}
+
+model Employee {
+  id               String     @id @default(uuid())
+  reference        String     @unique
+  status           String
+  name             String
+  departmentId     String
+  department       Department @relation(fields: [departmentId], references: [id])
+  positionId       String?
+  position         Position?  @relation(fields: [positionId], references: [id])
+  employmentType   String     @default("Permanent")
+  phone            String
+  email            String     @default("")
+  joinedOn         DateTime   @db.Date
+  birthDate        DateTime?  @db.Date
+  emergencyContact String     @default("")
+  basicSalaryBdt   Decimal    @db.Decimal(14, 2)
+  createdById      String?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  documents   EmployeeDocument[]
+  onboarding  OnboardingTask[]
+  attendance  AttendanceRecord[]
+  leave       LeaveRequest[]
+  payslips    Payslip[]
+  shifts      Shift[]
+  assignments StaffAssignment[]
+  enrollments TrainingEnrollment[]
+  skills      EmployeeSkill[]
+  reviews     PerformanceReview[]
+  goals       Goal[]
+
+  @@index([departmentId, status])
+  @@map("employees")
+}
+
+model EmployeeDocument {
+  id          String    @id @default(uuid())
+  reference   String    @unique
+  status      String
+  employeeId  String
+  employee    Employee  @relation(fields: [employeeId], references: [id])
+  docType     String
+  documentNo  String
+  expiresOn   DateTime? @db.Date
+  createdById String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([employeeId])
+  @@map("employee_documents")
+}
+
+model Candidate {
+  id          String   @id @default(uuid())
+  reference   String   @unique
+  status      String
+  name        String
+  positionId  String
+  position    Position @relation(fields: [positionId], references: [id])
+  phone       String
+  email       String   @default("")
+  source      String   @default("")
+  notes       String   @default("")
+  /// Employee record created when the candidate is hired.
+  employeeId  String?
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("candidates")
+}
+
+model OnboardingTask {
+  id          String   @id @default(uuid())
+  reference   String   @unique
+  status      String
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id])
+  task        String
+  buddy       String   @default("")
+  dueOn       DateTime @db.Date
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("onboarding_tasks")
+}
+
+model AttendanceRecord {
+  id          String    @id @default(uuid())
+  reference   String    @unique
+  status      String
+  employeeId  String
+  employee    Employee  @relation(fields: [employeeId], references: [id])
+  workDate    DateTime  @db.Date
+  shift       String    @default("")
+  post        String    @default("")
+  checkInAt   DateTime?
+  checkOutAt  DateTime?
+  createdById String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([employeeId, workDate])
+  @@index([workDate, status])
+  @@map("attendance_records")
+}
+
+model LeaveRequest {
+  id          String    @id @default(uuid())
+  reference   String    @unique
+  status      String
+  employeeId  String
+  employee    Employee  @relation(fields: [employeeId], references: [id])
+  leaveType   String
+  fromOn      DateTime  @db.Date
+  toOn        DateTime  @db.Date
+  days        Int       @default(0)
+  reason      String    @default("")
+  decidedBy   String?
+  decidedAt   DateTime?
+  createdById String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([employeeId, leaveType, status])
+  @@map("leave_requests")
+}
+
+model PayrollRun {
+  id            String    @id @default(uuid())
+  reference     String    @unique
+  status        String
+  period        String    @unique
+  payDate       DateTime  @db.Date
+  headcount     Int       @default(0)
+  grossBdt      Decimal   @default(0) @db.Decimal(14, 2)
+  deductionsBdt Decimal   @default(0) @db.Decimal(14, 2)
+  netBdt        Decimal   @default(0) @db.Decimal(14, 2)
+  notes         String    @default("")
+  postedAt      DateTime?
+  createdById   String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  payslips Payslip[]
+
+  @@map("payroll_runs")
+}
+
+model Payslip {
+  id            String     @id @default(uuid())
+  reference     String     @unique
+  status        String
+  payrollRunId  String
+  payrollRun    PayrollRun @relation(fields: [payrollRunId], references: [id], onDelete: Cascade)
+  employeeId    String
+  employee      Employee   @relation(fields: [employeeId], references: [id])
+  grossBdt      Decimal    @db.Decimal(14, 2)
+  deductionsBdt Decimal    @db.Decimal(14, 2)
+  netBdt        Decimal    @db.Decimal(14, 2)
+  createdById   String?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  @@unique([payrollRunId, employeeId])
+  @@map("payslips")
+}
+
+model WorkforcePlan {
+  id           String     @id @default(uuid())
+  reference    String     @unique
+  status       String
+  name         String
+  /// PERIOD or EVENT
+  scope        String
+  departmentId String
+  department   Department @relation(fields: [departmentId], references: [id])
+  eventPackId  String?
+  eventPack    EventPack? @relation(fields: [eventPackId], references: [id])
+  headcount    Int
+  period       String?
+  planDate     DateTime?  @db.Date
+  createdById  String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@index([scope, status])
+  @@map("workforce_plans")
+}
+
+model Shift {
+  id          String   @id @default(uuid())
+  reference   String   @unique
+  status      String
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id])
+  /// SHIFT or DUTY
+  kind        String
+  name        String
+  workDate    DateTime @db.Date
+  startsAt    String
+  endsAt      String
+  location    String   @default("")
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([employeeId, workDate])
+  @@index([kind, workDate])
+  @@map("shifts")
+}
+
+model StaffAssignment {
+  id          String     @id @default(uuid())
+  reference   String     @unique
+  status      String
+  employeeId  String
+  employee    Employee   @relation(fields: [employeeId], references: [id])
+  /// ALLOCATION or TASK
+  kind        String
+  title       String
+  eventPackId String?
+  eventPack   EventPack? @relation(fields: [eventPackId], references: [id])
+  location    String     @default("")
+  dueOn       DateTime?  @db.Date
+  priority    String
+  createdById String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@index([kind, status])
+  @@map("staff_assignments")
+}
+
+model Contractor {
+  id          String   @id @default(uuid())
+  reference   String   @unique
+  status      String
+  name        String
+  company     String
+  trade       String
+  phone       String   @default("")
+  validUntil  DateTime @db.Date
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("contractors")
+}
+
+model Volunteer {
+  id          String     @id @default(uuid())
+  reference   String     @unique
+  status      String
+  name        String
+  phone       String
+  skill       String
+  eventPackId String?
+  eventPack   EventPack? @relation(fields: [eventPackId], references: [id])
+  createdById String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  shifts       VolunteerShift[]
+  recognitions Recognition[]
+
+  @@map("volunteers")
+}
+
+model VolunteerShift {
+  id          String     @id @default(uuid())
+  reference   String     @unique
+  status      String
+  volunteerId String
+  volunteer   Volunteer  @relation(fields: [volunteerId], references: [id])
+  eventPackId String?
+  eventPack   EventPack? @relation(fields: [eventPackId], references: [id])
+  shift       String
+  workDate    DateTime   @db.Date
+  createdById String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@map("volunteer_shifts")
+}
+
+model Recognition {
+  id          String    @id @default(uuid())
+  reference   String    @unique
+  status      String
+  volunteerId String
+  volunteer   Volunteer @relation(fields: [volunteerId], references: [id])
+  award       String
+  awardedOn   DateTime  @db.Date
+  notes       String    @default("")
+  createdById String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("recognitions")
+}
+
+model Badge {
+  id          String   @id @default(uuid())
+  reference   String   @unique
+  status      String
+  holder      String
+  holderType  String
+  zone        String
+  validUntil  DateTime @db.Date
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("badges")
+}
+
+model TrainingSession {
+  id          String   @id @default(uuid())
+  reference   String   @unique
+  status      String
+  course      String
+  trainer     String
+  sessionDate DateTime @db.Date
+  seats       Int
+  enrolled    Int      @default(0)
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  enrollments TrainingEnrollment[]
+
+  @@map("training_sessions")
+}
+
+model TrainingEnrollment {
+  id                String          @id @default(uuid())
+  reference         String          @unique
+  status            String
+  trainingSessionId String
+  trainingSession   TrainingSession @relation(fields: [trainingSessionId], references: [id])
+  employeeId        String
+  employee          Employee        @relation(fields: [employeeId], references: [id])
+  createdById       String?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@unique([trainingSessionId, employeeId])
+  @@map("training_enrollments")
+}
+
+model Skill {
+  id          String   @id @default(uuid())
+  reference   String   @unique
+  status      String
+  name        String   @unique
+  category    String
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  holders EmployeeSkill[]
+
+  @@map("skills")
+}
+
+model EmployeeSkill {
+  id          String   @id @default(uuid())
+  reference   String   @unique
+  status      String
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id])
+  skillId     String
+  skill       Skill    @relation(fields: [skillId], references: [id])
+  level       String
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([employeeId, skillId])
+  @@map("employee_skills")
+}
+
+model PerformanceReview {
+  id          String   @id @default(uuid())
+  reference   String   @unique
+  status      String
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id])
+  period      String
+  rating      Int
+  reviewer    String
+  notes       String   @default("")
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("performance_reviews")
+}
+
+model Goal {
+  id          String   @id @default(uuid())
+  reference   String   @unique
+  status      String
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id])
+  period      String
+  title       String
+  score       Int
+  notes       String   @default("")
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("goals")
+}
+
+model Announcement {
+  id          String    @id @default(uuid())
+  reference   String    @unique
+  status      String
+  subject     String
+  audience    String
+  channel     String
+  body        String    @default("")
+  sentAt      DateTime?
+  createdById String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("announcements")
+}

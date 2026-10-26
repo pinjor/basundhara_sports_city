@@ -5,19 +5,8 @@ import { useAuthStore } from "../../store/auth";
 import { Ico } from "./icons";
 import { displayName } from "../../lib/user";
 import { Card, Fields } from "./widgets";
+import { DEFAULT_PREFS, useDashPrefs, useSaveDashPrefs, type DashPrefs } from "../../api/settings";
 
-type Prefs = { email: boolean; desktop: boolean; sound: boolean; digest: boolean; compact: boolean };
-
-const DEFAULTS: Prefs = { email: true, desktop: true, sound: false, digest: true, compact: false };
-const KEY = "bsc-dash-prefs";
-
-export function loadPrefs(): Prefs {
-  try {
-    return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(KEY) ?? "{}") };
-  } catch {
-    return DEFAULTS;
-  }
-}
 
 const HELP: Record<string, { links: [string, string, string][]; faq: [string, string][] }> = {
   [Role.FINANCE_CONTROLLER]: {
@@ -29,7 +18,7 @@ const HELP: Record<string, { links: [string, string, string][]; faq: [string, st
     ],
     faq: [
       ["How do I mark an invoice as paid?", "On the dashboard open the three-dot menu on an invoice row and choose Mark as paid, or open the Invoices desk for the full record."],
-      ["Where do the revenue figures come from?", "The dashboard shows the presentation set for 2024. Desks under Modules hold the live records."],
+      ["Where do the revenue figures come from?", "From posted revenue entries, paid expenses, payroll runs and invoices in the finance desks. A change there shows on the dashboard on the next refresh."],
       ["How do I change the reporting period?", "Use the date selector at the top right of the Revenue Dashboard, or the pill on each chart."],
     ],
   },
@@ -54,22 +43,23 @@ const HELP: Record<string, { links: [string, string, string][]; faq: [string, st
       ["trend", "Reports", "/ticketing/reports"],
     ],
     faq: [
-      ["How do I approve a booking?", "Open the three-dot menu on a pending row in Recent Bookings and choose Approve, or use Approve Booking under Quick Actions."],
+      ["How do I approve a booking?", "Open the three-dot menu on a pending row in Recent Bookings and choose Approve, or use Approve Bookings under Quick Actions to see every pending booking and open one."],
       ["How do I record a payment?", "Choose Mark as paid in the row menu. The payment badge and Booking Overview update at once."],
       ["Where is the venue calendar?", "Quick Actions → View Venue Schedule."],
     ],
   },
   [Role.SECURITY_MANAGER]: {
     links: [
-      ["camera", "Live cameras", "/security#live"],
-      ["alert", "Incidents", "/security#incidents"],
+      ["camera", "Cameras", "/security#live"],
+      ["alert", "Incidents & registers", "/security?view=records"],
       ["lock", "Access control", "/security#access"],
       ["report", "Reports", "/security#reports"],
     ],
     faq: [
-      ["How do I acknowledge an alert?", "Click an alert under Recent Alerts and choose Acknowledge. It moves to resolved and the alert count drops."],
+      ["How do I acknowledge an alert?", "Click an alert under Recent Alerts and choose Acknowledge. It moves to Acknowledged and the active alert count drops. Choose Resolve once it is dealt with."],
       ["Can I filter the site map?", "Pick a zone in the list beside the map. Pins outside the zone fade out."],
-      ["Is Lockdown Mode connected?", "Not in this prototype. It runs as a drill and shows a banner until you end it."],
+      ["How does Lockdown Mode work?", "Quick Actions → Lockdown Mode. Enter a reason, pick the scope and choose drill or real. The team is notified, the lockdown is logged and a banner shows until you end it. Gate hardware is not connected, so staff close gates on site."],
+      ["How do I log an incident?", "Open Incidents & Registers from the menu. Log the incident with a severity, then move it to Investigating and Resolved as you work it."],
     ],
   },
   [Role.CHAIRMAN]: {
@@ -82,7 +72,20 @@ const HELP: Record<string, { links: [string, string, string][]; faq: [string, st
     faq: [
       ["Can I change records from the Chairman view?", "No. The Chairman view is view only. Department teams approve, pay and update records from their own dashboards."],
       ["How do I see a department in detail?", "Click any headline figure or use Departments in the menu. It opens that department's dashboard in view-only mode."],
-      ["Where do the city-wide figures come from?", "The overview shows the year-to-date presentation set. Each department dashboard holds its own detail."],
+      ["Where do the city-wide figures come from?", "From the live records: posted revenue, paid expenses and payroll, gate entries, ticket orders, bookings, members and facilities, totalled for the year to date."],
+    ],
+  },
+  [Role.SUPER_ADMIN]: {
+    links: [
+      ["activity", "Event operations", "/?view=events"],
+      ["calCheck", "Approvals", "/approvals"],
+      ["crown", "Executive overview", "/chairman"],
+      ["shield", "Security centre", "/security"],
+    ],
+    faq: [
+      ["What can the Super Admin change?", "Everything. You can open every module and department dashboard with full edit rights, unlike the view-only Chairman view."],
+      ["Where are the live figures on the overview from?", "Occupancy, bookings, gate entries, members, venue health and activity come straight from the live system and refresh on their own."],
+      ["How do I run an event?", "Open Event Operations, pick an event pack and work through venue, access, hospitality, catering, parking and transport until each shows Ready."],
     ],
   },
 };
@@ -103,10 +106,14 @@ function Toggle({ label, hint, on, onChange }: { label: string; hint: string; on
 export function DashSettings({ kind, roleKey }: { kind: "settings" | "help"; roleKey?: string }) {
   const user = useAuthStore((s) => s.user);
   const role = roleKey ?? user?.role ?? Role.FINANCE_CONTROLLER;
-  const [prefs, setPrefs] = useState<Prefs>(loadPrefs);
+  const savedPrefs = useDashPrefs();
+  const save = useSaveDashPrefs();
+  const [prefs, setPrefs] = useState<DashPrefs>(savedPrefs);
   const [saved, setSaved] = useState(false);
   const [openQ, setOpenQ] = useState(0);
   const help = HELP[role] ?? HELP[Role.FINANCE_CONTROLLER];
+
+  useEffect(() => setPrefs(savedPrefs), [savedPrefs]);
 
   useEffect(() => {
     if (!saved) return;
@@ -114,7 +121,7 @@ export function DashSettings({ kind, roleKey }: { kind: "settings" | "help"; rol
     return () => window.clearTimeout(t);
   }, [saved]);
 
-  const set = (k: keyof Prefs) => (v: boolean) => setPrefs((p) => ({ ...p, [k]: v }));
+  const set = (k: keyof DashPrefs) => (v: boolean) => setPrefs((p) => ({ ...p, [k]: v }));
 
   if (kind === "help")
     return (
@@ -151,12 +158,12 @@ export function DashSettings({ kind, roleKey }: { kind: "settings" | "help"; rol
                 ))}
               </div>
             </Card>
-            <Card title="Contact support" icon="mail">
+            <Card title="Getting help" icon="mail">
               <Fields
                 rows={[
-                  ["IT helpdesk", <a key="m" className="view-all" href="mailto:support@bsc.com.bd">support@bsc.com.bd</a>],
-                  ["Phone", <a key="p" className="view-all" href="tel:+8809612000000">+880 9612 000000</a>],
-                  ["Hours", "Sun – Thu, 9:00 AM – 6:00 PM"],
+                  ["Accounts & passwords", "Ask your Super Admin"],
+                  ["Roles & access", "Set by the Super Admin per user"],
+                  ["Your sign-in", user?.email ?? "—"],
                 ]}
               />
             </Card>
@@ -197,19 +204,16 @@ export function DashSettings({ kind, roleKey }: { kind: "settings" | "help"; rol
             className="prefs"
             onSubmit={(e) => {
               e.preventDefault();
-              localStorage.setItem(KEY, JSON.stringify(prefs));
-              window.dispatchEvent(new Event("bsc-prefs"));
-              setSaved(true);
+              save.mutate(prefs, { onSuccess: () => setSaved(true) });
             }}
           >
-            <Toggle label="Email alerts" hint="Send critical items to your inbox" on={prefs.email} onChange={set("email")} />
-            <Toggle label="Desktop notifications" hint="Show the bell badge for new items" on={prefs.desktop} onChange={set("desktop")} />
-            <Toggle label="Alert sound" hint="Play a tone for critical alerts" on={prefs.sound} onChange={set("sound")} />
-            <Toggle label="Daily digest" hint="Morning summary at 8:00 AM" on={prefs.digest} onChange={set("digest")} />
+            <Toggle label="Notification badge" hint="Show the unread count on the bell" on={prefs.desktop} onChange={set("desktop")} />
+            <Toggle label="Alert sound" hint="Play a short tone when a new notification arrives" on={prefs.sound} onChange={set("sound")} />
             <Toggle label="Compact tables" hint="Tighter rows in dashboard tables" on={prefs.compact} onChange={set("compact")} />
             <div className="prefs-foot">
-              <button type="button" className="panel-btn" onClick={() => setPrefs(DEFAULTS)}>Reset</button>
-              <button type="submit" className="btn-gold">{saved ? <><Ico name="check" className="pop-ico" />Saved</> : "Save changes"}</button>
+              <button type="button" className="panel-btn" onClick={() => setPrefs(DEFAULT_PREFS)}>Reset</button>
+              {save.isError && <span className="sub" role="alert">Could not save. Try again.</span>}
+              <button type="submit" className="btn-gold" disabled={save.isPending}>{saved ? <><Ico name="check" className="pop-ico" />Saved</> : "Save changes"}</button>
             </div>
           </form>
         </Card>

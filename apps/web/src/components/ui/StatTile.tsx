@@ -8,12 +8,12 @@ interface StatTileProps {
   tone?: "gold" | "teal" | "blue" | "red" | "default";
 }
 
-const TONE_TEXT: Record<NonNullable<StatTileProps["tone"]>, string> = {
-  gold: "text-gold",
-  teal: "text-teal",
-  blue: "text-blue",
-  red: "text-red",
-  default: "text-text",
+const TONE_COLOR: Record<NonNullable<StatTileProps["tone"]>, { accent: string; value: string }> = {
+  gold: { accent: "#f2b81d", value: "#ffd44d" },
+  teal: { accent: "#22c97a", value: "#3ee39a" },
+  blue: { accent: "#3f97f4", value: "#6fb2ff" },
+  red: { accent: "#f0444a", value: "#ff6b70" },
+  default: { accent: "#5b5f69", value: "#f4f4f5" },
 };
 
 /**
@@ -45,14 +45,15 @@ export function StatTile({ label, value, suffix = "", prefix = "", tone = "defau
     return () => cancelAnimationFrame(raf);
   }, [value]);
 
+  const color = TONE_COLOR[tone];
   return (
-    <div className="animate-stat-in rounded-lg border border-gold/20 bg-surface-2 p-4 shadow-gold-sm">
-      <div className="text-xs uppercase tracking-[0.16em] text-gold/70">{label}</div>
-      <div className={`mt-1.5 font-display text-3xl font-bold leading-none ${TONE_TEXT[tone]}`}>
+    <div className="stat animate-stat-in" style={{ ["--a" as string]: color.accent, ["--v" as string]: color.value }}>
+      <span className="stat-l">{label}</span>
+      <b className="stat-v">
         {prefix}
         {display.toLocaleString()}
         {suffix}
-      </div>
+      </b>
     </div>
   );
 }

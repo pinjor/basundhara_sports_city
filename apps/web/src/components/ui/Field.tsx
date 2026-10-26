@@ -10,18 +10,19 @@ import {
   type ReactNode,
   type SelectHTMLAttributes,
 } from "react";
+import { statusLabel } from "./StatusBadge";
 
 export function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="mb-3 block">
-      <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.16em] text-gold/80">{label}</span>
+      <span className="mb-1.5 block text-[13px] font-medium text-text-dim">{label}</span>
       {children}
     </div>
   );
 }
 
 const inputBase =
-  "w-full rounded-md border border-border bg-surface-2 px-3 py-2.5 text-sm text-text placeholder:text-text-dimmer shadow-gold-sm transition-colors focus-visible:border-gold focus-visible:shadow-gold";
+  "w-full min-h-11 rounded-lg border border-[var(--border-strong)] bg-surface-2 px-3 py-2.5 text-sm text-text placeholder:text-text-dimmer transition-colors focus-visible:border-gold focus-visible:shadow-[0_0_0_3px_rgba(242,184,29,0.12)]";
 
 export function TextInput(props: InputHTMLAttributes<HTMLInputElement>) {
   return <input {...props} className={`${inputBase} ${props.className ?? ""}`} />;
@@ -37,9 +38,9 @@ function optionsFromChildren(children: ReactNode): SelectOption[] {
   return Children.toArray(children).flatMap((child) => {
     if (!isValidElement(child) || child.type !== "option") return [];
     const props = child.props as { value?: string | number; children?: ReactNode; disabled?: boolean };
-    const label = String(props.children ?? "");
+    const label = Children.toArray(props.children).filter((part) => typeof part === "string" || typeof part === "number").join("");
     const value = props.value === undefined || props.value === null ? label : String(props.value);
-    return [{ value, label, disabled: props.disabled }];
+    return [{ value, label: label === value ? statusLabel(label) : label, disabled: props.disabled }];
   });
 }
 
@@ -52,6 +53,7 @@ export function SelectInput({
   name,
   required,
   id,
+  "aria-label": ariaLabel,
 }: SelectHTMLAttributes<HTMLSelectElement>) {
   const options = useMemo(() => optionsFromChildren(children), [children]);
   const [open, setOpen] = useState(false);
@@ -111,15 +113,16 @@ export function SelectInput({
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-required={required}
+        aria-label={ariaLabel}
         onClick={() => {
           if (disabled) return;
           setOpen((next) => !next);
         }}
         className={`${inputBase} flex items-center justify-between gap-3 text-left disabled:cursor-not-allowed disabled:opacity-50 ${
-          open ? "border-gold shadow-gold" : ""
+          open ? "border-gold shadow-[0_0_0_3px_rgba(242,184,29,0.12)]" : ""
         }`}
       >
-        <span className={selected?.label ? "truncate text-text" : "text-text-dimmer"}>{selected?.label || "Select"}</span>
+        <span className={`min-w-0 text-left leading-snug [overflow-wrap:anywhere] ${selected?.label ? "text-text" : "text-text-dimmer"}`}>{selected?.label || "Select"}</span>
         <svg
           viewBox="0 0 20 20"
           className={`h-4 w-4 shrink-0 text-gold transition-transform ${open ? "rotate-180" : ""}`}
@@ -134,7 +137,7 @@ export function SelectInput({
         <ul
           role="listbox"
           style={{ top: menu.top, left: menu.left, width: menu.width }}
-          className="thin-scroll fixed z-[80] max-h-72 overflow-auto rounded-md border border-gold/40 bg-surface-2 p-1 shadow-gold"
+          className="thin-scroll fixed z-[80] max-h-72 overflow-auto rounded-lg border border-[var(--border-strong)] bg-[var(--surface-primary)] p-1 shadow-[var(--shadow-pop)]"
         >
           {options.map((option) => {
             const active = option.value === current;
@@ -150,7 +153,7 @@ export function SelectInput({
                     active ? "bg-gold/20 text-gold" : "text-text hover:bg-hover hover:text-gold-soft"
                   } disabled:opacity-40`}
                 >
-                  <span className="truncate">{option.label}</span>
+                  <span className="min-w-0 leading-snug [overflow-wrap:anywhere]">{option.label}</span>
                   {active && <span className="ml-3 text-[10px] tracking-[0.16em] text-gold">●</span>}
                 </button>
               </li>

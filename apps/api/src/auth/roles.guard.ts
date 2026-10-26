@@ -6,7 +6,8 @@ import { ROLES_KEY } from "./roles.decorator";
 /**
  * RBAC enforcement (Section 3). Applied globally alongside JwtAuthGuard:
  *  - SUPER_ADMIN always passes.
- *  - READ_ONLY_EXECUTIVE passes for GET requests on any module (dashboards only, no write access).
+ *  - READ_ONLY_EXECUTIVE and CHAIRMAN pass for GET requests on any module, and may write only
+ *    where an endpoint lists their role explicitly (e.g. the chairman's event approval).
  *  - Every other role must be explicitly listed in the endpoint's @Roles(...) metadata.
  *  - An endpoint with no @Roles metadata is open to any authenticated user.
  */
@@ -30,7 +31,7 @@ export class RolesGuard implements CanActivate {
     }
 
     if (user.role === Role.READ_ONLY_EXECUTIVE || user.role === Role.CHAIRMAN) {
-      if (request.method === "GET") return true;
+      if (request.method === "GET" || requiredRoles.includes(user.role)) return true;
       throw new ForbiddenException("View-only roles cannot perform write actions");
     }
 

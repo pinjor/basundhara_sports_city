@@ -1,0 +1,803 @@
+// Bashundhara Sports City Digital Management Platform — data model.
+// Covers the 12 in-scope modules (Section 4 of the master build prompt).
+// Status/type fields are stored as String and validated at the API layer
+// against the shared enums in @bsc/shared, rather than duplicated here as
+// native Postgres enums — this keeps the taxonomy in one place as later
+// phases extend it, without a migration for every new status value.
+
+// Domain models live beside this file: finance.prisma, procurement.prisma, inventory.prisma,
+// hrm.prisma, bookings.prisma, ticketing.prisma, security.prisma, platform.prisma.
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["prismaSchemaFolder"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Identity & RBAC (Section 3)
+// ---------------------------------------------------------------------------
+
+model User {
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         String // Role enum value from @bsc/shared
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  auditLogs         AuditLog[]
+  notificationReads NotificationRead[]
+  preference        UserPreference?
+
+  @@map("users")
+}
+
+/// Attributes and timestamps every mutating action (Section 3, Section 7 auditability).
+model AuditLog {
+  id         String   @id @default(uuid())
+  entityType String
+  entityId   String
+  action     String
+  before     Json?
+  after      Json?
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@map("audit_logs")
+}
+
+// ---------------------------------------------------------------------------
+// 4.1 Complex Master Data, Zone & Map Management
+// ---------------------------------------------------------------------------
+
+model Zone {
+  id            String   @id @default(uuid())
+  name          String
+  type          String // ZoneType
+  parentZoneId  String?
+  parentZone    Zone?    @relation("ZoneHierarchy", fields: [parentZoneId], references: [id])
+  childZones    Zone[]   @relation("ZoneHierarchy")
+  building      String?
+  floor         String?
+  capacity      Int      @default(0)
+  liveOccupancy Int      @default(0)
+  mapX          Float? // normalized 0-1 position on the complex map
+  mapY          Float?
+  status        String   @default("Operational") // ZoneStatus
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  facilities   Facility[]
+  gates        Gate[]
+  parkingZones ParkingZone[]
+  lounges      Lounge[]
+  outlets      Outlet[]
+
+  @@map("zones")
+}
+
+// ---------------------------------------------------------------------------
+// 4.2 Venue, Facility & Space Management
+// ---------------------------------------------------------------------------
+
+model Facility {
+  id                  String    @id @default(uuid())
+  name                String
+  zoneId              String
+  zone                Zone      @relation(fields: [zoneId], references: [id])
+  type                String // FacilityType
+  capacity            Int       @default(0)
+  operatingHoursStart String    @default("06:00")
+  operatingHoursEnd   String    @default("23:00")
+  status              String    @default("Available") // FacilityStatus
+  currentBookingRef   String?
+  nextBookingRef      String?
+  lastInspectionDate  DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  surfaces Surface[]
+  bookings Booking[]
+
+  /// Minutes kept free before and after each booking for setup and clean-down.
+  bufferMinutes  Int                    @default(0)
+  slots          Slot[]
+  recurringRules RecurringBookingRule[]
+  waitlist       WaitlistEntry[]
+  coachSessions  CoachSession[]
+  pricingRules   PricingRule[]
+
+  @@index([zoneId])
+  @@map("facilities")
+}
+
+// ---------------------------------------------------------------------------
+// Event Operations Pack — booking is the commercial/operational anchor
+// ---------------------------------------------------------------------------
+
+model EventPack {
+  id             String    @id @default(uuid())
+  bookingId      String    @unique
+  booking        Booking   @relation(fields: [bookingId], references: [id])
+  title          String
+  status         String    @default("Planning")
+  expectedCount  Int       @default(0)
+  /// Chairman sign-off: Pending, Approved or Rejected.
+  approvalStatus String    @default("Approved")
+  approvedById   String?
+  approvedAt     DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  visitors            Visitor[]
+  vipGuests           VIPGuest[]
+  serviceRequests     ServiceRequest[]
+  orders              Order[]
+  trips               Trip[]
+  tasks               OpsTask[]
+  incidents           OpsIncident[]
+  credentials         Credential[]
+  parkingReservations ParkingReservation[]
+  workforcePlans      WorkforcePlan[]
+  staffAssignments    StaffAssignment[]
+  volunteers          Volunteer[]
+  volunteerShifts     VolunteerShift[]
+
+  @@map("event_packs")
+}
+
+model OpsTask {
+  id          String     @id @default(uuid())
+  eventPackId String?
+  eventPack   EventPack? @relation(fields: [eventPackId], references: [id])
+  title       String
+  area        String
+  status      String     @default("Open")
+  priority    String     @default("Normal")
+  dueAt       DateTime?
+  relatedType String?
+  relatedId   String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@index([eventPackId, status])
+  @@map("ops_tasks")
+}
+
+model OpsIncident {
+  id          String     @id @default(uuid())
+  eventPackId String?
+  eventPack   EventPack? @relation(fields: [eventPackId], references: [id])
+  title       String
+  severity    String     @default("Medium")
+  status      String     @default("Open")
+  relatedType String?
+  relatedId   String?
+  notes       String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@index([eventPackId, status])
+  @@map("ops_incidents")
+}
+
+model Credential {
+  id          String     @id @default(uuid())
+  holderRef   String
+  type        String
+  status      String     @default("Active")
+  code        String     @unique @default(uuid())
+  eventPackId String?
+  eventPack   EventPack? @relation(fields: [eventPackId], references: [id])
+  memberId    String?
+  visitorId   String?
+  validFrom   DateTime   @default(now())
+  validTo     DateTime?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@index([holderRef])
+  @@index([eventPackId])
+  @@map("credentials")
+}
+
+model ParkingReservation {
+  id            String      @id @default(uuid())
+  eventPackId   String
+  eventPack     EventPack   @relation(fields: [eventPackId], references: [id])
+  parkingZoneId String
+  parkingZone   ParkingZone @relation(fields: [parkingZoneId], references: [id])
+  plateNumber   String?
+  status        String      @default("Reserved")
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([eventPackId])
+  @@map("parking_reservations")
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  title     String
+  body      String
+  href      String?
+  /// Role the notification is meant for; null means everyone.
+  role      String?
+  createdAt DateTime @default(now())
+
+  reads NotificationRead[]
+
+  @@map("notifications")
+}
+
+// ---------------------------------------------------------------------------
+// 4.3 Playing Surface & Sports Equipment Management
+// ---------------------------------------------------------------------------
+
+model Surface {
+  id              String    @id @default(uuid())
+  facilityId      String
+  facility        Facility  @relation(fields: [facilityId], references: [id])
+  surfaceType     String // SurfaceType
+  condition       String    @default("Good") // SurfaceCondition
+  moisturePercent Float?
+  lastInspection  DateTime?
+  nextMaintenance DateTime?
+  closureStatus   String    @default("Open") // ClosureStatus
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([facilityId])
+  @@map("surfaces")
+}
+
+model Equipment {
+  id        String   @id @default(uuid())
+  name      String
+  category  String // EquipmentCategory
+  quantity  Int      @default(0)
+  status    String   @default("In Stock") // EquipmentStatus
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  addOns BookingAddOn[]
+
+  @@map("equipment")
+}
+
+// ---------------------------------------------------------------------------
+// 4.4 Booking & Reservation Management
+// ---------------------------------------------------------------------------
+
+model Booking {
+  id                 String     @id @default(uuid())
+  facilityId         String
+  facility           Facility   @relation(fields: [facilityId], references: [id])
+  customerName       String
+  memberId           String?
+  type               String // BookingType
+  date               DateTime
+  timeSlotStart      String
+  timeSlotEnd        String
+  status             String     @default("Pending") // BookingStatus
+  amount             Decimal    @default(0) @db.Decimal(10, 2)
+  paymentStatus      String     @default("Unpaid") // PaymentStatus
+  featureKey         String     @default("")
+  detail             String     @default("")
+  qrConfirmationCode String     @unique @default(uuid())
+  createdById        String
+  /// Set when the booking was requested from the customer app.
+  customerId         String?
+  customer           Customer?  @relation(fields: [customerId], references: [id])
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+  eventPack          EventPack?
+
+  addOns   BookingAddOn[]
+  deposits BookingDeposit[]
+  payments BookingPayment[]
+
+  @@index([facilityId, date])
+  @@index([customerId])
+  @@map("bookings")
+}
+
+// ---------------------------------------------------------------------------
+// 4.5 Gym, Pool & Membership Management
+// ---------------------------------------------------------------------------
+
+model Member {
+  id           String    @id @default(uuid())
+  name         String
+  email        String    @unique
+  phone        String?
+  tier         String // MembershipTier
+  joinDate     DateTime  @default(now())
+  expiryDate   DateTime
+  status       String    @default("Active") // MemberStatus
+  checkInCount Int       @default(0)
+  lastCheckIn  DateTime?
+  lockerId     String?
+  billingCycle String    @default("Monthly")
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@map("members")
+}
+
+// ---------------------------------------------------------------------------
+// 4.6 Access Control & Gate Management
+// ---------------------------------------------------------------------------
+
+model Gate {
+  id           String   @id @default(uuid())
+  name         String
+  zoneId       String
+  zone         Zone     @relation(fields: [zoneId], references: [id])
+  type         String // GateType
+  status       String   @default("Online") // GateStatus
+  entriesToday Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  accessLogs AccessLogEntry[]
+
+  entryReviews EntryReview[]
+
+  @@index([zoneId])
+  @@map("gates")
+}
+
+model AccessLogEntry {
+  id            String   @id @default(uuid())
+  gateId        String
+  gate          Gate     @relation(fields: [gateId], references: [id])
+  personRef     String
+  credentialRef String?
+  method        String // AccessMethod
+  result        String // AccessResult
+  reason        String?
+  timestamp     DateTime @default(now())
+
+  @@index([gateId, timestamp])
+  @@map("access_log_entries")
+}
+
+// ---------------------------------------------------------------------------
+// 4.7 Visitor & Guest Management
+// ---------------------------------------------------------------------------
+
+model Visitor {
+  id             String     @id @default(uuid())
+  name           String
+  host           String
+  purpose        String
+  category       String // VisitorCategory
+  checkInTime    DateTime?
+  checkOutTime   DateTime?
+  status         String     @default("Expected") // VisitorStatus
+  escortRequired Boolean    @default(false)
+  qrPassCode     String     @unique @default(uuid())
+  eventPackId    String?
+  eventPack      EventPack? @relation(fields: [eventPackId], references: [id])
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  @@index([eventPackId])
+  @@map("visitors")
+}
+
+// ---------------------------------------------------------------------------
+// 4.8 VIP/VVIP & Protocol Management
+// ---------------------------------------------------------------------------
+
+model VIPGuest {
+  id                String     @id @default(uuid())
+  name              String
+  designation       String?
+  classification    String // VIPClassification
+  arrivalDatetime   DateTime
+  protocolOfficerId String?
+  status            String     @default("Scheduled") // VIPStatus
+  loungeAssignment  String?
+  seatAllocation    String?
+  mealPreference    String?
+  privacyFlag       Boolean    @default(false)
+  eventPackId       String?
+  eventPack         EventPack? @relation(fields: [eventPackId], references: [id])
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  @@index([eventPackId])
+  @@map("vip_guests")
+}
+
+// ---------------------------------------------------------------------------
+// 4.9 Hospitality, Lounge & Refreshment Management
+// ---------------------------------------------------------------------------
+
+model Lounge {
+  id               String   @id @default(uuid())
+  name             String
+  zoneId           String
+  zone             Zone     @relation(fields: [zoneId], references: [id])
+  capacity         Int      @default(0)
+  currentOccupancy Int      @default(0)
+  status           String   @default("Open") // LoungeStatus
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  serviceRequests ServiceRequest[]
+
+  @@index([zoneId])
+  @@map("lounges")
+}
+
+model ServiceRequest {
+  id          String     @id @default(uuid())
+  partyRef    String
+  loungeId    String
+  lounge      Lounge     @relation(fields: [loungeId], references: [id])
+  item        String
+  status      String     @default("Pending") // ServiceRequestStatus
+  requestedAt DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  eventPackId String?
+  eventPack   EventPack? @relation(fields: [eventPackId], references: [id])
+
+  @@index([loungeId])
+  @@index([eventPackId])
+  @@map("service_requests")
+}
+
+// ---------------------------------------------------------------------------
+// 4.10 Restaurant, Catering & Concession Management
+// ---------------------------------------------------------------------------
+
+model Outlet {
+  id        String   @id @default(uuid())
+  name      String
+  type      String // OutletType
+  zoneId    String
+  zone      Zone     @relation(fields: [zoneId], references: [id])
+  status    String   @default("Open") // OutletStatus
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  orders Order[]
+
+  @@index([zoneId])
+  @@map("outlets")
+}
+
+model Order {
+  id          String     @id @default(uuid())
+  outletId    String
+  outlet      Outlet     @relation(fields: [outletId], references: [id])
+  items       Json
+  amount      Decimal    @default(0) @db.Decimal(10, 2)
+  status      String     @default("Order Received") // OrderStatus
+  placedAt    DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  eventPackId String?
+  eventPack   EventPack? @relation(fields: [eventPackId], references: [id])
+
+  @@index([outletId])
+  @@index([eventPackId])
+  @@map("orders")
+}
+
+// ---------------------------------------------------------------------------
+// 4.11 Parking Management
+// ---------------------------------------------------------------------------
+
+model ParkingZone {
+  id       String  @id @default(uuid())
+  name     String
+  type     String // ParkingZoneType
+  zoneId   String?
+  zone     Zone?   @relation(fields: [zoneId], references: [id])
+  capacity Int     @default(0)
+  occupied Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  vehicleLogs  VehicleLogEntry[]
+  reservations ParkingReservation[]
+
+  @@index([zoneId])
+  @@map("parking_zones")
+}
+
+model VehicleLogEntry {
+  id            String      @id @default(uuid())
+  plateNumber   String
+  vehicleRef    String?
+  parkingZoneId String
+  parkingZone   ParkingZone @relation(fields: [parkingZoneId], references: [id])
+  type          String // ParkingZoneType (category the vehicle is parked under)
+  entryTime     DateTime    @default(now())
+  exitTime      DateTime?
+
+  @@index([parkingZoneId])
+  @@map("vehicle_log_entries")
+}
+
+// ---------------------------------------------------------------------------
+// 4.12 Transport, Fleet & Buggy Management
+// ---------------------------------------------------------------------------
+
+model FleetVehicle {
+  id              String   @id @default(uuid())
+  type            String // FleetVehicleType
+  driverName      String?
+  status          String   @default("Available") // FleetVehicleStatus
+  currentLocation String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  trips Trip[]
+
+  @@map("fleet_vehicles")
+}
+
+model Trip {
+  id           String       @id @default(uuid())
+  vehicleId    String
+  vehicle      FleetVehicle @relation(fields: [vehicleId], references: [id])
+  passengerRef String
+  fromLocation String
+  toLocation   String
+  status       String       @default("Requested") // TripStatus
+  requestedAt  DateTime     @default(now())
+  completedAt  DateTime?
+  eventPackId  String?
+  eventPack    EventPack?   @relation(fields: [eventPackId], references: [id])
+
+  @@index([vehicleId])
+  @@index([eventPackId])
+  @@map("trips")
+}
+
+// ---------------------------------------------------------------------------
+// Match ticketing (customer web + operations). Separate from facility Booking.
+// Prices are VAT-exclusive BDT. The VAT rate is data, not a hard-coded rule.
+// ---------------------------------------------------------------------------
+
+model MatchEvent {
+  id          String   @id @default(uuid())
+  title       String
+  sport       String
+  venueName   String
+  venueNote   String?
+  startsAt    DateTime
+  doorsAt     DateTime
+  /// ON_SALE or CLOSED. Sold-out is derived from remaining seats.
+  salesStatus String   @default("ON_SALE")
+  /// Basis points. 1500 = 15.00%. Pending Finance/Legal confirmation (OD-03).
+  vatRateBps  Int      @default(1500)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  sections   EventSection[]
+  categories TicketCategory[]
+  orders     TicketOrder[]
+
+  seatAssignments   SeatAssignment[]
+  boxOfficeTickets  BoxOfficeTicket[]
+  ticketAllocations TicketAllocation[]
+  promoCodes        PromoCode[]
+
+  @@index([startsAt])
+  @@map("match_events")
+}
+
+model EventSection {
+  id          String     @id @default(uuid())
+  eventId     String
+  event       MatchEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  name        String
+  rows        Int
+  seatsPerRow Int
+  sortOrder   Int        @default(0)
+
+  categories TicketCategory[]
+  holds      SeatHold[]
+
+  @@index([eventId])
+  @@map("event_sections")
+}
+
+model TicketCategory {
+  id        String       @id @default(uuid())
+  eventId   String
+  event     MatchEvent   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  sectionId String       @unique
+  section   EventSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  name      String
+  priceBdt  Decimal      @db.Decimal(12, 2)
+  gateName  String
+
+  priceChanges PriceChange[]
+
+  @@index([eventId])
+  @@map("ticket_categories")
+}
+
+model TicketOrder {
+  id            String     @id @default(uuid())
+  reference     String     @unique
+  eventId       String
+  event         MatchEvent @relation(fields: [eventId], references: [id])
+  buyerName     String
+  buyerMobile   String
+  buyerEmail    String
+  /// AWAITING_PAYMENT, PAYMENT_FAILED_RETRY_HOLD, CONFIRMED, EXPIRED, CANCEL_REQUESTED, CANCELLED, REFUNDED
+  status        String
+  holdExpiresAt DateTime
+  holdCeilingAt DateTime
+  subtotal      Decimal    @db.Decimal(12, 2)
+  vat           Decimal    @db.Decimal(12, 2)
+  total         Decimal    @db.Decimal(12, 2)
+  termsAccepted Boolean    @default(false)
+  customerId    String?
+  customer      Customer?  @relation(fields: [customerId], references: [id])
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  items   TicketOrderItem[]
+  holds   SeatHold[]
+  payment TicketPayment?
+  tickets IssuedTicket[]
+  refunds RefundRequest[]
+
+  transfers TicketTransfer[]
+  cases     TicketCase[]
+
+  @@index([eventId])
+  @@index([buyerMobile])
+  @@index([customerId])
+  @@index([status])
+  @@map("ticket_orders")
+}
+
+model TicketOrderItem {
+  id         String      @id @default(uuid())
+  orderId    String
+  order      TicketOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  sectionId  String
+  categoryId String
+  rowLabel   String
+  seatNumber Int
+  unitPrice  Decimal     @db.Decimal(12, 2)
+
+  ticket IssuedTicket?
+
+  @@index([orderId])
+  @@index([sectionId, rowLabel, seatNumber])
+  @@map("ticket_order_items")
+}
+
+model SeatHold {
+  id         String       @id @default(uuid())
+  eventId    String
+  sectionId  String
+  section    EventSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  rowLabel   String
+  seatNumber Int
+  orderId    String
+  order      TicketOrder  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  expiresAt  DateTime
+
+  @@unique([eventId, sectionId, rowLabel, seatNumber])
+  @@index([orderId])
+  @@map("seat_holds")
+}
+
+model TicketPayment {
+  id            String      @id @default(uuid())
+  orderId       String      @unique
+  order         TicketOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  method        String
+  /// INITIATED, CAPTURED, FAILED, REFUNDED
+  status        String
+  providerRef   String?
+  sandbox       Boolean     @default(true)
+  failureReason String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@map("ticket_payments")
+}
+
+model IssuedTicket {
+  id         String          @id @default(uuid())
+  orderId    String
+  order      TicketOrder     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  itemId     String          @unique
+  item       TicketOrderItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  tokenHash  String          @unique
+  /// Shown only to the buyer who presents reference + mobile. Never written to logs.
+  tokenPlain String
+  /// VALID, USED, REVOKED
+  status     String          @default("VALID")
+  gateName   String
+  usedAt     DateTime?
+  createdAt  DateTime        @default(now())
+
+  @@index([orderId])
+  @@map("issued_tickets")
+}
+
+model RefundRequest {
+  id          String      @id @default(uuid())
+  orderId     String
+  order       TicketOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  reason      String
+  /// REQUESTED, APPROVED, REJECTED
+  status      String      @default("REQUESTED")
+  decidedById String?
+  decidedAt   DateTime?
+  createdAt   DateTime    @default(now())
+
+  @@index([orderId])
+  @@index([status])
+  @@map("refund_requests")
+}
+
+model AccessVerification {
+  id        String   @id @default(uuid())
+  deviceId  String
+  scanId    String
+  direction String
+  decision  String
+  reason    String
+  ticketId  String?
+  gateId    String?
+  createdAt DateTime @default(now())
+
+  @@unique([deviceId, scanId])
+  @@index([createdAt])
+  @@map("access_verifications")
+}
+
+model ModuleDeskRecord {
+  id          String   @id @default(uuid())
+  moduleKey   String
+  featureKey  String
+  reference   String   @unique
+  title       String
+  party       String
+  notes       String   @default("")
+  amountBdt   Decimal? @db.Decimal(14, 2)
+  details     Json     @default("{}")
+  status      String
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([moduleKey, featureKey])
+  @@map("module_desk_records")
+}
+
+model IdempotencyRecord {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  scope       String
+  requestHash String
+  statusCode  Int
+  body        Json
+  createdAt   DateTime @default(now())
+
+  @@map("idempotency_records")
+}

@@ -3,7 +3,7 @@ import { FleetVehicleStatus, TripStatus, TRIP_STATUS_TRANSITIONS, FLEET_VEHICLE_
 import { ModuleHeader } from "../../components/layout/ModuleHeader";
 import { useFeaturePreset } from "../../lib/featurePresets";
 import { Button } from "../../components/ui/Button";
-import { StatusBadge } from "../../components/ui/StatusBadge";
+import { StatusBadge, statusLabel } from "../../components/ui/StatusBadge";
 import { StatTile } from "../../components/ui/StatTile";
 import { StatusKanban } from "../../components/ui/StatusKanban";
 import { useFleetVehicles, useSetFleetVehicleStatus, useTrips, useAdvanceTrip } from "../../api/fleet";
@@ -71,7 +71,7 @@ export function FleetPage() {
           {vehicles.map((vehicle) => {
             const nextStatuses = FLEET_VEHICLE_STATUS_TRANSITIONS[vehicle.status] ?? [];
             return (
-              <div key={vehicle.id} className="rounded-lg border border-border bg-surface-2 p-4">
+              <div key={vehicle.id} className="panel p-4">
                 <div className="mb-2 flex items-start justify-between">
                   <div>
                     <div className="font-medium text-text">{vehicle.type}</div>
@@ -90,7 +90,7 @@ export function FleetPage() {
                       onClick={() => quickStatus(vehicle.id, s, vehicle.type)}
                       disabled={!canManage || setVehicleStatus.isPending}
                     >
-                      {s}
+                      {statusLabel(s)}
                     </Button>
                   ))}
                 </div>

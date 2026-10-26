@@ -36,7 +36,7 @@ const BY_FEATURE: Record<string, Partial<FeatureStage>> = {
   },
   "buggy-management": {
     kicker: "Campus mobility",
-    lede: "On-campus buggies, battery state and short-hop assignments.",
+    lede: "On-campus buggies and their short-hop assignments.",
     boardTitle: "Buggy fleet",
     actionTitle: "Register buggy",
   },
@@ -54,13 +54,13 @@ const BY_FEATURE: Record<string, Partial<FeatureStage>> = {
   },
   "gps-tracking": {
     kicker: "Live location",
-    lede: "Vehicles currently on the road with last known point.",
+    lede: "Vehicles on a trip with the last location dispatch recorded. No GPS device is connected.",
     boardTitle: "Vehicles in motion",
     actionTitle: "Start a tracked run",
   },
   "real-time-vehicle-location": {
     kicker: "Control room",
-    lede: "Where each dispatched vehicle is right now.",
+    lede: "Dispatched vehicles and their last recorded location, updated by dispatch.",
     boardTitle: "Live positions",
     actionTitle: "Dispatch for tracking",
   },
@@ -78,7 +78,7 @@ const BY_FEATURE: Record<string, Partial<FeatureStage>> = {
   },
   "convoy-management": {
     kicker: "Convoy",
-    lede: "Vehicle sequence, drivers and passenger allocation.",
+    lede: "Protocol guests and the vehicles and drivers assigned to them.",
     boardTitle: "Protocol guests",
     actionTitle: "Open convoy case",
   },
@@ -102,13 +102,13 @@ const BY_FEATURE: Record<string, Partial<FeatureStage>> = {
   },
   "qr-scanner": {
     kicker: "Access",
-    lede: "Live reader events — grant or deny with a reason.",
+    lede: "Scans recorded at the gate desk — grant or deny with a reason.",
     boardTitle: "Recent scans",
-    actionTitle: "Simulate scan",
+    actionTitle: "Record scan",
   },
   "parking-reservation": {
     kicker: "Parking",
-    lede: "Reserved bays linked to bookings, VIP and visitors.",
+    lede: "Parking zones and arrivals logged against them.",
     boardTitle: "Parking zones",
     actionTitle: "Log arrival",
   },

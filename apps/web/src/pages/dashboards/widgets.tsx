@@ -1,6 +1,8 @@
 import { createContext, useContext, useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
+import { AnimatePresence, motion } from "framer-motion";
+import { CountUp, HOVER, itemVariants, popVariants } from "../../lib/motion";
 import { Ico } from "./icons";
 
 export const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -29,6 +31,28 @@ export function useOutside(open: boolean, onClose: () => void) {
   return ref;
 }
 
+function useTilt(span = 1) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [tilt, setTilt] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const measure = () => {
+      const tilted = el.classList.contains("tilt");
+      if (tilted) el.classList.remove("tilt");
+      const spans = [...el.children] as HTMLElement[];
+      const over = spans.some((s) => s.firstElementChild && (s.firstElementChild as HTMLElement).offsetWidth > s.clientWidth * span - 4);
+      if (tilted) el.classList.add("tilt");
+      setTilt(over);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [span]);
+  return [ref, tilt] as const;
+}
+
 export function Card({
   title,
   icon,
@@ -47,7 +71,7 @@ export function Card({
   children: ReactNode;
 }) {
   return (
-    <section id={id} className={`card ${className}`}>
+    <motion.section id={id} className={`card ${className}`} variants={itemVariants} whileHover={HOVER}>
       <header className="card-h">
         <div className="card-t">
           <h3>
@@ -59,7 +83,7 @@ export function Card({
         {extra}
       </header>
       <div className="card-b">{children}</div>
-    </section>
+    </motion.section>
   );
 }
 
@@ -73,8 +97,9 @@ export function Pick({ options, value, onChange, icon }: { options: string[]; va
         {value}
         <Ico name="chevron" className="pill-ico" />
       </button>
+      <AnimatePresence>
       {open && (
-        <ul className="pop" role="listbox">
+        <motion.ul className="pop" role="listbox" variants={popVariants} initial="hidden" animate="show" exit="exit">
           {options.map((o) => (
             <li key={o}>
               <button
@@ -91,7 +116,34 @@ export function Pick({ options, value, onChange, icon }: { options: string[]; va
               </button>
             </li>
           ))}
-        </ul>
+        </motion.ul>
+      )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+/** Pick bound to a keyed option list, showing labels. */
+export function KeyPick<K extends string>({ options, value, onChange, icon }: { options: Record<K, string>; value: K; onChange: (k: K) => void; icon?: string }) {
+  const entries = Object.entries(options) as [K, string][];
+  return <Pick options={entries.map(([, label]) => label)} value={options[value]} icon={icon} onChange={(label) => onChange(entries.find(([, l]) => l === label)![0])} />;
+}
+
+/** Placeholder while a dashboard loads, or a retry prompt when it fails. */
+export function DashStatus({ error, onRetry }: { error?: unknown; onRetry: () => void }) {
+  return (
+    <div className="dash-status" role={error ? "alert" : "status"}>
+      {error ? (
+        <>
+          <Ico name="alert" />
+          <p>Couldn’t load this dashboard.</p>
+          <button type="button" className="panel-btn" onClick={onRetry}>Try again</button>
+        </>
+      ) : (
+        <>
+          <span className="dash-spin" aria-hidden />
+          <p>Loading dashboard…</p>
+        </>
       )}
     </div>
   );
@@ -114,7 +166,7 @@ export type KpiProps = {
   icon: string;
   label: string;
   value: string;
-  delta: string;
+  delta?: string;
   down?: boolean;
   bad?: boolean;
   note?: string;
@@ -137,41 +189,47 @@ function KpiCard({ variant, icon, label, value, delta, down, bad, note, spark, c
   const style = { ["--a" as string]: color };
   if (variant === "stripe")
     return (
-      <article className="kpi kpi-stripe" style={style}>
+      <motion.article className="kpi kpi-stripe" style={style} variants={itemVariants} whileHover={HOVER}>
         <span className="kpi-ico"><Ico name={icon} /></span>
         <div className="kpi-txt">
           <span className="kpi-l">{label}</span>
-          <b className="kpi-v">{value}</b>
-          <em className={tone}><Ico name={down ? "arrowDown" : "trend"} className="kpi-arrow" />{down ? "-" : "+"}{delta}</em>
-          <small>vs. previous period</small>
+          <b className="kpi-v"><CountUp value={value} /></b>
+          {delta ? (
+            <>
+              <em className={tone}><Ico name={down ? "arrowDown" : "trend"} className="kpi-arrow" />{down ? "-" : "+"}{delta}</em>
+              <small>vs. previous period</small>
+            </>
+          ) : (
+            <small>No earlier period to compare</small>
+          )}
         </div>
-      </article>
+      </motion.article>
     );
   if (variant === "spark")
     return (
-      <article className="kpi kpi-spark" style={style}>
+      <motion.article className="kpi kpi-spark" style={style} variants={itemVariants} whileHover={HOVER}>
         <div className="kpi-top">
           <span className="kpi-ico line"><Ico name={icon} /></span>
-          <span className={`chg ${tone}`}><Ico name={arrow} className="kpi-arrow" />{delta}</span>
+          {delta && <span className={`chg ${tone}`}><Ico name={arrow} className="kpi-arrow" />{delta}</span>}
         </div>
         <span className="kpi-l">{label}</span>
         <div className="kpi-row">
-          <b className="kpi-v">{value}</b>
+          <b className="kpi-v"><CountUp value={value} /></b>
           {spark && <Spark values={spark} color={bad ? "#f0444a" : color} />}
         </div>
         {note && <small>{note}</small>}
-      </article>
+      </motion.article>
     );
   return (
-    <article className={`kpi kpi-${variant}`} style={style}>
+    <motion.article className={`kpi kpi-${variant}`} style={style} variants={itemVariants} whileHover={HOVER}>
       <span className="kpi-ico line"><Ico name={icon} /></span>
       <div className="kpi-txt">
-        <b className="kpi-v">{value}</b>
+        <b className="kpi-v"><CountUp value={value} /></b>
         <span className="kpi-l">{label}</span>
-        <em className={tone}><Ico name={arrow} className="kpi-arrow" />{delta}</em>
+        {delta && <em className={tone}><Ico name={arrow} className="kpi-arrow" />{delta}</em>}
       </div>
       {spark && <Spark values={spark} color={color} />}
-    </article>
+    </motion.article>
   );
 }
 
@@ -375,6 +433,7 @@ export function Cols({
   tick?: number;
 }) {
   const top = max ?? Math.max(...series.flatMap((s) => s.values), ...(line?.values ?? []), 1);
+  const [xRef, tilt] = useTilt(tick);
   const linePts = line?.values.map((v, i) => `${((i + 0.5) / labels.length) * 100},${100 - (v / top) * 100}`).join(" ");
   return (
     <div className="chart">
@@ -425,8 +484,8 @@ export function Cols({
               </>
             )}
           </div>
-          <div className={`cols-x ${tick > 1 ? "ticked" : ""}`}>
-            {labels.map((label, i) => <span key={label + i}>{i % tick === 0 ? label : ""}</span>)}
+          <div ref={xRef} className={`cols-x ${tick > 1 ? "ticked" : ""} ${tilt ? "tilt" : ""}`}>
+            {labels.map((label, i) => <span key={label + i} title={label}><em>{i % tick === 0 ? label : ""}</em></span>)}
           </div>
         </div>
       </div>
@@ -489,8 +548,9 @@ export function RowMenu({ items }: { items: { label: string; icon: string; onCli
       <button type="button" className="dots" aria-label="Row actions" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
         <Ico name="dots" strokeWidth={3} />
       </button>
+      <AnimatePresence>
       {open && (
-        <ul className="pop right">
+        <motion.ul className="pop right" variants={popVariants} initial="hidden" animate="show" exit="exit">
           {items.map((it) => (
             <li key={it.label}>
               <button type="button" onClick={() => { setOpen(false); it.onClick(); }}>
@@ -499,8 +559,9 @@ export function RowMenu({ items }: { items: { label: string; icon: string; onCli
               </button>
             </li>
           ))}
-        </ul>
+        </motion.ul>
       )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -513,10 +574,20 @@ export function Sheet({ open, title, onClose, children, wide = false }: { open: 
     document.addEventListener("keydown", key);
     return () => document.removeEventListener("keydown", key);
   }, [open, onClose]);
-  if (!open) return null;
   return createPortal(
-    <div className="sheet-bg" onMouseDown={onClose}>
-      <div className={`sheet ${wide ? "wide" : ""}`} role="dialog" aria-modal="true" aria-label={title} onMouseDown={(e) => e.stopPropagation()}>
+    <AnimatePresence>
+    {open && (
+    <motion.div className="sheet-bg" onMouseDown={onClose} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, transition: { duration: 0.18 } }}>
+      <motion.div
+        className={`sheet ${wide ? "wide" : ""}`}
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        onMouseDown={(e) => e.stopPropagation()}
+        initial={{ opacity: 0, y: 28, scale: 0.96 }}
+        animate={{ opacity: 1, y: 0, scale: 1, transition: { type: "spring", stiffness: 380, damping: 32 } }}
+        exit={{ opacity: 0, y: 16, scale: 0.97, transition: { duration: 0.16 } }}
+      >
         <header>
           <h3>{title}</h3>
           <button type="button" className="dots" aria-label="Close" onClick={onClose} autoFocus><Ico name="x" /></button>
@@ -525,8 +596,10 @@ export function Sheet({ open, title, onClose, children, wide = false }: { open: 
           {ro && <p className="ro-note"><Ico name="lock" />View only · changes are made by the department team</p>}
           {children}
         </div>
-      </div>
-    </div>,
+      </motion.div>
+    </motion.div>
+    )}
+    </AnimatePresence>,
     document.querySelector(".dash") ?? document.body,
   );
 }

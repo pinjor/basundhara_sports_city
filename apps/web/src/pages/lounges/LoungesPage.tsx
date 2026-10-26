@@ -75,7 +75,7 @@ export function LoungesPage() {
           {lounges.map((lounge) => {
             const pct = lounge.capacity > 0 ? Math.round((lounge.currentOccupancy / lounge.capacity) * 100) : 0;
             return (
-              <div key={lounge.id} className="rounded-lg border border-border bg-surface-2 p-4">
+              <div key={lounge.id} className="panel p-4">
                 <div className="mb-2 flex items-start justify-between">
                   <div>
                     <div className="font-medium text-text">{lounge.name}</div>

@@ -15,7 +15,7 @@ export function LoadingSkeleton({ rows = 3 }: { rows?: number }) {
 export function EmptyState({ title, body, action }: { title: string; body?: string; action?: ReactNode }) {
   return (
     <div className="panel px-6 py-10 text-center">
-      <p className="font-display text-xl uppercase tracking-wide text-[var(--brand-gold)]">{title}</p>
+      <p className="text-lg font-semibold text-text">{title}</p>
       {body && <p className="mx-auto mt-2 max-w-md text-sm text-text-dim">{body}</p>}
       {action && <div className="mt-4">{action}</div>}
     </div>

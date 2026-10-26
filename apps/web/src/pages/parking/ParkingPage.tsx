@@ -60,7 +60,7 @@ export function ParkingPage() {
               <button
                 key={zone.id}
                 onClick={() => setSelectedZoneId(zone.id)}
-                className="rounded-lg border border-border bg-surface-2 p-4 text-left hover:border-gold/40"
+                className="panel p-4 text-left"
               >
                 <div className="mb-1 font-medium text-text">{zone.name}</div>
                 <div className="mb-3 text-xs text-text-dimmer">{zone.type} · {zone.zone?.name}</div>

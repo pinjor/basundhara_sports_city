@@ -1,0 +1,163 @@
+// ---------------------------------------------------------------------------
+// Inventory: warehouses, items, tags, batches. Posted movements maintain StockBalance.
+// ---------------------------------------------------------------------------
+
+model Warehouse {
+  id          String   @id @default(uuid())
+  reference   String   @unique
+  status      String
+  name        String
+  location    String
+  manager     String
+  capacity    Int?
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  stores         Store[]
+  purchaseOrders PurchaseOrder[]
+  lots           StockLot[]
+  movementsFrom  StockMovement[] @relation("MovementFrom")
+  movementsTo    StockMovement[] @relation("MovementTo")
+  balances       StockBalance[]
+
+  @@map("warehouses")
+}
+
+model Store {
+  id          String    @id @default(uuid())
+  reference   String    @unique
+  status      String
+  name        String
+  warehouseId String
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
+  kind        String
+  keeper      String
+  createdById String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("stores")
+}
+
+model ItemCategory {
+  id          String   @id @default(uuid())
+  reference   String   @unique
+  status      String
+  name        String   @unique
+  description String   @default("")
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  items Item[]
+
+  @@map("item_categories")
+}
+
+model Item {
+  id           String       @id @default(uuid())
+  reference    String       @unique
+  status       String
+  sku          String       @unique
+  name         String
+  categoryId   String
+  category     ItemCategory @relation(fields: [categoryId], references: [id])
+  /// CONSUMABLE, EQUIPMENT, SPARE_PART
+  kind         String
+  unit         String
+  unitCostBdt  Decimal      @db.Decimal(14, 2)
+  reorderLevel Int
+  /// Sum of StockBalance across warehouses, kept in step by posted movements.
+  onHand       Int          @default(0)
+  createdById  String?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  tags             ItemTag[]
+  lots             StockLot[]
+  movements        StockMovement[]
+  balances         StockBalance[]
+  purchaseRequests PurchaseRequest[]
+  rfqs             Rfq[]
+  purchaseOrders   PurchaseOrder[]
+
+  @@index([kind])
+  @@map("items")
+}
+
+model ItemTag {
+  id          String   @id @default(uuid())
+  reference   String   @unique
+  status      String
+  itemId      String
+  item        Item     @relation(fields: [itemId], references: [id])
+  /// BARCODE or RFID
+  kind        String
+  code        String   @unique
+  location    String   @default("")
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("item_tags")
+}
+
+model StockLot {
+  id          String    @id @default(uuid())
+  reference   String    @unique
+  status      String
+  itemId      String
+  item        Item      @relation(fields: [itemId], references: [id])
+  batchNo     String
+  warehouseId String
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
+  quantity    Int
+  receivedOn  DateTime  @db.Date
+  expiresOn   DateTime? @db.Date
+  createdById String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([expiresOn])
+  @@map("stock_lots")
+}
+
+model StockMovement {
+  id            String     @id @default(uuid())
+  reference     String     @unique
+  status        String
+  /// RECEIPT, ISSUE, TRANSFER, ADJUST
+  kind          String
+  itemId        String
+  item          Item       @relation(fields: [itemId], references: [id])
+  warehouseId   String
+  warehouse     Warehouse  @relation("MovementFrom", fields: [warehouseId], references: [id])
+  toWarehouseId String?
+  toWarehouse   Warehouse? @relation("MovementTo", fields: [toWarehouseId], references: [id])
+  quantity      Int
+  reason        String     @default("")
+  /// Document that produced the movement, e.g. a delivery.
+  sourceType    String     @default("")
+  sourceId      String?
+  postedAt      DateTime?
+  createdById   String?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  @@index([itemId, kind, status])
+  @@map("stock_movements")
+}
+
+model StockBalance {
+  id          String    @id @default(uuid())
+  itemId      String
+  item        Item      @relation(fields: [itemId], references: [id])
+  warehouseId String
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
+  quantity    Int       @default(0)
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([itemId, warehouseId])
+  @@map("stock_balances")
+}

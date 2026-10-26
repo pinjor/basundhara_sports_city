@@ -1,0 +1,53 @@
+// ---------------------------------------------------------------------------
+// Platform: reference numbers, per-user notification state, preferences, projects
+// ---------------------------------------------------------------------------
+
+/// Running counter per prefix and year, e.g. key "INV-2026" -> INV-2026-0001.
+model Sequence {
+  key   String @id
+  value Int    @default(0)
+
+  @@map("sequences")
+}
+
+/// One row per user who has read a notification; absence means unread.
+model NotificationRead {
+  id             String       @id @default(uuid())
+  notificationId String
+  notification   Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  readAt         DateTime     @default(now())
+
+  @@unique([notificationId, userId])
+  @@index([userId])
+  @@map("notification_reads")
+}
+
+/// Dashboard and display settings, saved per user.
+model UserPreference {
+  userId    String   @id
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  data      Json
+  updatedAt DateTime @updatedAt
+
+  @@map("user_preferences")
+}
+
+/// Capital projects shown to the chairman.
+model Project {
+  id          String   @id @default(uuid())
+  reference   String   @unique
+  status      String
+  name        String
+  owner       String
+  budgetBdt   Decimal  @db.Decimal(14, 2)
+  progress    Int      @default(0)
+  dueOn       DateTime @db.Date
+  notes       String?
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("projects")
+}

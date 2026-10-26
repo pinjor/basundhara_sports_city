@@ -272,7 +272,27 @@ export interface AuthUserDto {
   role: string;
 }
 
-export interface LoginResponseDto {
+/** Short-lived access token plus a rotating refresh token (POST /auth/refresh). */
+export interface TokenPairDto {
   accessToken: string;
+  refreshToken: string;
+  /** Access-token lifetime in seconds. */
+  expiresIn: number;
+  tokenType: "Bearer";
+}
+
+export interface LoginResponseDto extends TokenPairDto {
   user: AuthUserDto;
+}
+
+export interface CustomerDto {
+  id: string;
+  name: string;
+  email: string;
+  mobile: string;
+  createdAt: string;
+}
+
+export interface CustomerAuthResponseDto extends TokenPairDto {
+  customer: CustomerDto;
 }

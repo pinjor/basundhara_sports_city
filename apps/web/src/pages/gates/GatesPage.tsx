@@ -70,7 +70,7 @@ export function GatesPage() {
           ) : (
             <div className="grid gap-3 sm:grid-cols-2">
               {gates.map((gate) => (
-                <div key={gate.id} className="rounded-lg border border-border bg-surface-2 p-4">
+                <div key={gate.id} className="panel p-4">
                   <div className="mb-2 flex items-start justify-between">
                     <div>
                       <button className="text-left font-medium text-text hover:text-gold" onClick={() => setSelectedGateId(gate.id)}>
@@ -97,7 +97,7 @@ export function GatesPage() {
           )}
         </div>
 
-        <div className="rounded-lg border border-border bg-surface-2 p-4">
+        <div className="panel p-4">
           <h3 className="mb-3 font-display text-base font-semibold text-text">Live access log</h3>
           <div className="max-h-[560px] space-y-2 overflow-y-auto">
             {recentLog.length === 0 && <p className="text-sm text-text-dim">No access events yet.</p>}

@@ -55,7 +55,7 @@ export function TasksPage() {
         </div>
       </header>
 
-      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="stat-row mb-6">
         <StatTile label={eventQueue ? "Event tasks" : "Open tasks"} value={deskTasks.length} tone="gold" />
         <StatTile label="Done" value={tasks.filter((t) => t.status === "Done").length} tone="teal" />
         <StatTile label="Event packs" value={new Set(eventTasks.map((t) => t.eventPack?.id).filter(Boolean)).size} tone="blue" />
@@ -71,7 +71,7 @@ export function TasksPage() {
       ) : (
         <div className="space-y-6">
           {Object.entries(groups).map(([group, items]) => (
-            <section key={group} className="overflow-hidden rounded-xl border border-gold/25 bg-surface-2">
+            <section key={group} className="panel overflow-hidden">
               <div className="border-b border-gold/15 px-4 py-3">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-gold/70">{eventQueue ? "Event pack" : "Area"}</p>
                 <h3 className="font-display text-lg text-text">{group}</h3>
@@ -86,7 +86,7 @@ export function TasksPage() {
                         {task.eventPack && (
                           <>
                             {" · "}
-                            <Link to={`/?event=${task.eventPack.id}`} className="text-gold hover:text-gold-soft">
+                            <Link to={`/?view=events&event=${task.eventPack.id}`} className="text-gold hover:text-gold-soft">
                               {task.eventPack.title}
                             </Link>
                           </>
@@ -117,7 +117,7 @@ export function TasksPage() {
           <h3 className="mb-3 font-display text-lg text-text">Incidents</h3>
           <div className="space-y-2">
             {incidents.map((incident) => (
-              <div key={incident.id} className="rounded-lg border border-gold/20 bg-surface-2 px-4 py-3">
+              <div key={incident.id} className="panel px-4 py-3">
                 <div className="flex items-center gap-2">
                   <StatusBadge status={incident.severity} />
                   <StatusBadge status={incident.status} />

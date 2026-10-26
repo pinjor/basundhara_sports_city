@@ -2,7 +2,7 @@ import { useState } from "react";
 import { CLOSURE_STATUS_TRANSITIONS, ClosureStatus, EquipmentStatus, Role, type EquipmentDto } from "@bsc/shared";
 import { ModuleHeader } from "../../components/layout/ModuleHeader";
 import { Button } from "../../components/ui/Button";
-import { StatusBadge } from "../../components/ui/StatusBadge";
+import { StatusBadge, statusLabel } from "../../components/ui/StatusBadge";
 import { StatTile } from "../../components/ui/StatTile";
 import { DataTable, type Column } from "../../components/ui/DataTable";
 import { SelectInput } from "../../components/ui/Field";
@@ -85,7 +85,7 @@ export function SurfacesPage() {
           {surfaces.map((surface) => {
             const nextStatuses = CLOSURE_STATUS_TRANSITIONS[surface.closureStatus] ?? [];
             return (
-              <div key={surface.id} className="rounded-lg border border-border bg-surface-2 p-4">
+              <div key={surface.id} className="panel p-4">
                 <div className="mb-2 flex items-start justify-between">
                   <div>
                     <div className="font-medium text-text">{surface.facility?.name}</div>
@@ -108,7 +108,7 @@ export function SurfacesPage() {
                       onClick={() => transitionClosure(surface.id, s, surface.facility?.name ?? "surface")}
                       disabled={!canManage || setClosureStatus.isPending}
                     >
-                      {s}
+                      {statusLabel(s)}
                     </Button>
                   ))}
                 </div>

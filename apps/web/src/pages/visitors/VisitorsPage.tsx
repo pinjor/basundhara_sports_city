@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQueryText } from "../../hooks/useQueryText";
 import { VisitorCategory, VisitorStatus, Role, type VisitorDto } from "@bsc/shared";
 import { ModuleHeader } from "../../components/layout/ModuleHeader";
 import { useFeaturePreset } from "../../lib/featurePresets";
@@ -15,11 +16,11 @@ import { VisitorDetailModal } from "./VisitorDetailModal";
 export function VisitorsPage() {
   const [category, setCategory] = useState("");
   const [status, setStatus] = useState("");
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useQueryText();
   useFeaturePreset((preset) => {
     setCategory(preset.category ?? "");
     setStatus(preset.status ?? "");
-    setSearch(preset.search ?? "");
+    setSearch(preset.search ?? search);
   });
   const [createOpen, setCreateOpen] = useState(false);
   const [selectedVisitorId, setSelectedVisitorId] = useState<string | null>(null);
@@ -53,7 +54,7 @@ export function VisitorsPage() {
         <StatTile label="Checked out" value={byStatus(VisitorStatus.CHECKED_OUT)} />
       </div>
 
-      <div className="mb-4 grid gap-3 rounded-lg border border-border bg-surface-2 p-4 sm:grid-cols-3">
+      <div className="mb-4 grid gap-3 panel p-4 sm:grid-cols-3">
         <TextInput placeholder="Search visitors…" value={search} onChange={(e) => setSearch(e.target.value)} />
         <SelectInput value={category} onChange={(e) => setCategory(e.target.value)}>
           <option value="">All categories</option>

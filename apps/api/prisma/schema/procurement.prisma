@@ -1,0 +1,250 @@
+// ---------------------------------------------------------------------------
+// Procurement: request -> approval -> sourcing -> order -> delivery -> invoice match
+// ---------------------------------------------------------------------------
+
+model Vendor {
+  id            String   @id @default(uuid())
+  reference     String   @unique
+  status        String
+  name          String
+  category      String
+  contactPerson String
+  phone         String
+  email         String   @default("")
+  /// Average of selected supplier evaluations, 1-5.
+  rating        Decimal? @db.Decimal(3, 1)
+  createdById   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  quotations     Quotation[]
+  tenderBids     TenderBid[]
+  evaluations    SupplierEvaluation[]
+  contracts      Contract[]
+  purchaseOrders PurchaseOrder[]
+
+  @@map("vendors")
+}
+
+model PurchaseRequest {
+  id           String   @id @default(uuid())
+  reference    String   @unique
+  status       String
+  title        String
+  department   String
+  requestedBy  String
+  itemId       String?
+  item         Item?    @relation(fields: [itemId], references: [id])
+  quantity     Int
+  estimatedBdt Decimal  @db.Decimal(14, 2)
+  neededBy     DateTime @db.Date
+  emergency    Boolean  @default(false)
+  notes        String   @default("")
+  createdById  String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  purchaseOrders PurchaseOrder[]
+
+  @@index([emergency, status])
+  @@map("purchase_requests")
+}
+
+model Rfq {
+  id          String   @id @default(uuid())
+  reference   String   @unique
+  status      String
+  title       String
+  itemId      String?
+  item        Item?    @relation(fields: [itemId], references: [id])
+  quantity    Int
+  closesOn    DateTime @db.Date
+  notes       String   @default("")
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  quotations  Quotation[]
+  evaluations SupplierEvaluation[]
+
+  @@map("rfqs")
+}
+
+model Quotation {
+  id           String   @id @default(uuid())
+  reference    String   @unique
+  status       String
+  rfqId        String
+  rfq          Rfq      @relation(fields: [rfqId], references: [id])
+  vendorId     String
+  vendor       Vendor   @relation(fields: [vendorId], references: [id])
+  unitPriceBdt Decimal  @db.Decimal(14, 2)
+  quantity     Int
+  totalBdt     Decimal  @default(0) @db.Decimal(14, 2)
+  deliveryDays Int
+  validUntil   DateTime @db.Date
+  createdById  String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([rfqId])
+  @@map("quotations")
+}
+
+model Tender {
+  id           String   @id @default(uuid())
+  reference    String   @unique
+  status       String
+  title        String
+  category     String
+  estimatedBdt Decimal  @db.Decimal(14, 2)
+  publishedOn  DateTime @db.Date
+  closesOn     DateTime @db.Date
+  notes        String   @default("")
+  createdById  String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  bids TenderBid[]
+
+  @@map("tenders")
+}
+
+model TenderBid {
+  id             String   @id @default(uuid())
+  reference      String   @unique
+  status         String
+  tenderId       String
+  tender         Tender   @relation(fields: [tenderId], references: [id])
+  vendorId       String
+  vendor         Vendor   @relation(fields: [vendorId], references: [id])
+  bidBdt         Decimal  @db.Decimal(14, 2)
+  technicalScore Int
+  createdById    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([tenderId])
+  @@map("tender_bids")
+}
+
+model SupplierEvaluation {
+  id          String   @id @default(uuid())
+  reference   String   @unique
+  status      String
+  vendorId    String
+  vendor      Vendor   @relation(fields: [vendorId], references: [id])
+  rfqId       String?
+  rfq         Rfq?     @relation(fields: [rfqId], references: [id])
+  quality     Int
+  price       Int
+  delivery    Int
+  score       Decimal  @default(0) @db.Decimal(3, 1)
+  notes       String   @default("")
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("supplier_evaluations")
+}
+
+model Contract {
+  id          String   @id @default(uuid())
+  reference   String   @unique
+  status      String
+  title       String
+  vendorId    String
+  vendor      Vendor   @relation(fields: [vendorId], references: [id])
+  startsOn    DateTime @db.Date
+  endsOn      DateTime @db.Date
+  valueBdt    Decimal  @db.Decimal(14, 2)
+  notes       String   @default("")
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("contracts")
+}
+
+model PurchaseOrder {
+  id                String           @id @default(uuid())
+  reference         String           @unique
+  status            String
+  vendorId          String
+  vendor            Vendor           @relation(fields: [vendorId], references: [id])
+  itemId            String
+  item              Item             @relation(fields: [itemId], references: [id])
+  quantity          Int
+  unitPriceBdt      Decimal          @db.Decimal(14, 2)
+  amountBdt         Decimal          @default(0) @db.Decimal(14, 2)
+  warehouseId       String
+  warehouse         Warehouse        @relation(fields: [warehouseId], references: [id])
+  expectedOn        DateTime         @db.Date
+  purchaseRequestId String?
+  purchaseRequest   PurchaseRequest? @relation(fields: [purchaseRequestId], references: [id])
+  receivedQty       Int              @default(0)
+  createdById       String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  deliveries Delivery[]
+  matches    InvoiceMatch[]
+
+  @@index([vendorId])
+  @@map("purchase_orders")
+}
+
+model ProcurementBudget {
+  id           String   @id @default(uuid())
+  reference    String   @unique
+  status       String
+  name         String
+  department   String
+  period       String
+  amountBdt    Decimal  @db.Decimal(14, 2)
+  committedBdt Decimal  @default(0) @db.Decimal(14, 2)
+  createdById  String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("procurement_budgets")
+}
+
+model Delivery {
+  id              String        @id @default(uuid())
+  reference       String        @unique
+  status          String
+  purchaseOrderId String
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
+  carrier         String
+  trackingNo      String        @default("")
+  quantity        Int
+  expectedOn      DateTime      @db.Date
+  deliveredAt     DateTime?
+  createdById     String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([purchaseOrderId])
+  @@map("deliveries")
+}
+
+model InvoiceMatch {
+  id              String        @id @default(uuid())
+  reference       String        @unique
+  status          String
+  purchaseOrderId String
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
+  vendorInvoiceNo String
+  invoicedQty     Int
+  invoicedBdt     Decimal       @db.Decimal(14, 2)
+  receivedQty     Int           @default(0)
+  orderedBdt      Decimal       @default(0) @db.Decimal(14, 2)
+  varianceBdt     Decimal       @default(0) @db.Decimal(14, 2)
+  createdById     String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([purchaseOrderId])
+  @@map("invoice_matches")
+}

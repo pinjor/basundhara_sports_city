@@ -56,14 +56,6 @@ export function useOpsIncidents() {
   });
 }
 
-export function useNotifications() {
-  return useQuery({
-    queryKey: ["notifications"],
-    queryFn: async () => (await api.get<{ id: string; title: string; body: string; href: string | null; read: boolean; createdAt: string }[]>("/operations/notifications")).data,
-    refetchInterval: 20000,
-  });
-}
-
 export function useSearch(q: string) {
   return useQuery({
     queryKey: ["search", q],

@@ -23,16 +23,6 @@ export class OperationsController {
     return this.operations.listIncidents({ status });
   }
 
-  @Get("notifications")
-  listNotifications() {
-    return this.operations.listNotifications();
-  }
-
-  @Post("notifications/:id/read")
-  markRead(@Param("id") id: string) {
-    return this.operations.markNotificationRead(id);
-  }
-
   @Get("search")
   search(@Query("q") q = "") {
     return this.operations.search(q);

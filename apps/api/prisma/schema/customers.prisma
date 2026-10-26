@@ -1,0 +1,40 @@
+// ---------------------------------------------------------------------------
+// Customer accounts (public mobile app) and refresh tokens for every client
+// ---------------------------------------------------------------------------
+
+/// A member of the public who signs in to the mobile app. Separate from staff `User`.
+model Customer {
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  mobile       String   @unique
+  passwordHash String
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  ticketOrders TicketOrder[]
+  bookings     Booking[]
+
+  @@map("customers")
+}
+
+/// Opaque, rotating refresh token. Only its SHA-256 hash is stored.
+model RefreshToken {
+  id           String    @id @default(uuid())
+  /// "staff" (User) or "customer" (Customer)
+  subjectType  String
+  subjectId    String
+  /// Every rotation keeps the family; reusing a rotated token revokes the whole family.
+  familyId     String
+  tokenHash    String    @unique
+  expiresAt    DateTime
+  revokedAt    DateTime?
+  replacedById String?
+  userAgent    String?
+  createdAt    DateTime  @default(now())
+
+  @@index([subjectType, subjectId])
+  @@index([familyId])
+  @@map("refresh_tokens")
+}

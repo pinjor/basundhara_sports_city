@@ -31,7 +31,6 @@ export function ApprovalsPage() {
     return { booking, amount, hot };
   });
   const desk = escalations ? ranked.filter((r) => r.hot).sort((a, b) => b.amount - a.amount) : ranked.filter((r) => !r.hot);
-  const fallback = escalations && desk.length === 0 ? ranked.slice().sort((a, b) => b.amount - a.amount) : desk;
 
   async function decide(id: string, status: string) {
     try {
@@ -75,20 +74,20 @@ export function ApprovalsPage() {
         </div>
       </header>
 
-      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
+      <div className="stat-row mb-6" style={{ ["--n" as string]: 3 }}>
         <StatTile label="Pending" value={pending.length} tone="gold" />
         <StatTile label="Escalations" value={ranked.filter((r) => r.hot).length} tone="red" />
-        <StatTile label="On this desk" value={fallback.length} tone="blue" />
+        <StatTile label="On this desk" value={desk.length} tone="blue" />
       </div>
 
       {isLoading ? (
         <p className="text-sm text-text-dim">Loading approvals…</p>
-      ) : fallback.length === 0 ? (
+      ) : desk.length === 0 ? (
         <p className="text-sm text-text-dim">{escalations ? "No escalated holds right now." : "No standard pending bookings."}</p>
       ) : (
         <div className="space-y-3">
-          {fallback.map(({ booking, amount, hot }) => (
-            <div key={booking.id} className={`rounded-xl border bg-surface-2 p-4 ${hot ? "border-gold shadow-gold-sm" : "border-gold/20"}`}>
+          {desk.map(({ booking, amount, hot }) => (
+            <div key={booking.id} className={`panel p-4 ${hot ? "!border-gold" : ""}`}>
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <div className="font-display text-lg text-text">{booking.customerName}</div>

@@ -1,6 +1,7 @@
 import { StatusBadge } from "../components/ui/StatusBadge";
 import { StatTile } from "../components/ui/StatTile";
 import type { FlowKind } from "./flows";
+import { AccessResult } from "@bsc/shared";
 import type {
   AccessLogEntryDto,
   BookingDto,
@@ -194,8 +195,8 @@ export function buildFeatureDesk(kind: FlowKind, data: DeskData, type?: string, 
         kpis: [
           kpi("Gates", gates.length, "gold"),
           kpi("Scans", accessLog.length, "blue"),
-          kpi("Granted", accessLog.filter((e) => e.result === "Granted").length, "teal"),
-          kpi("Denied", accessLog.filter((e) => e.result === "Denied").length, "red"),
+          kpi("Granted", accessLog.filter((e) => e.result === AccessResult.APPROVED).length, "teal"),
+          kpi("Denied", accessLog.filter((e) => e.result === AccessResult.DENIED).length, "red"),
         ],
         rows:
           kind === "gate-log" || accessLog.length > 0
@@ -340,7 +341,7 @@ export function buildFeatureDesk(kind: FlowKind, data: DeskData, type?: string, 
 export function FeatureKpis({ items }: { items: DeskKpi[] }) {
   if (items.length === 0) return null;
   return (
-    <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+    <div className="stat-row mb-6" style={{ ["--n" as string]: items.length }}>
       {items.map((item) => (
         <StatTile key={item.label} label={item.label} value={item.value} tone={item.tone} />
       ))}
@@ -360,8 +361,8 @@ export function FeatureRegister({
   onSelect: (id: string) => void;
 }) {
   return (
-    <section className="overflow-hidden rounded-xl border border-gold/25 bg-surface-2 shadow-gold-sm">
-      <div className="flex items-center justify-between border-b border-gold/15 px-5 py-4">
+    <section className="panel overflow-hidden">
+      <div className="flex items-center justify-between border-b border-[var(--border-subtle)] px-5 py-4">
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-gold/70">Live register</p>
           <h3 className="mt-1 font-display text-lg font-semibold text-text">{title}</h3>
@@ -373,7 +374,7 @@ export function FeatureRegister({
       {rows.length === 0 ? (
         <p className="px-5 py-10 text-sm text-text-dim">No live records in this desk yet. Use the gold rail to create the first one — it will appear here immediately.</p>
       ) : (
-        <ul className="thin-scroll max-h-[640px] divide-y divide-gold/10 overflow-y-auto">
+        <ul className="thin-scroll max-h-[640px] divide-y divide-[var(--border-subtle)] overflow-y-auto">
           {rows.map((item) => {
             const active = selectedId === item.id;
             return (

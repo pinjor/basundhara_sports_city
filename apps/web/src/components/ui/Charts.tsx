@@ -70,12 +70,13 @@ export function BarChart({ series, label }: { series: { label: string; value: nu
       ))}
       {series.map((item, index) => {
         const barHeight = (item.value / max) * (height - 4);
-        const barWidth = slot * 0.55;
+        const barWidth = Math.min(slot * 0.55, 16);
         const x = index * slot + (slot - barWidth) / 2;
+        const tick = /^\d{4}-\d{2}-\d{2}/.test(item.label) ? item.label.slice(5, 10) : item.label;
         return (
           <g key={item.label}>
             <rect x={x} y={height - barHeight} width={barWidth} height={barHeight} rx="1" fill="url(#goldBar)" />
-            <text x={x + barWidth / 2} y={height + 10} textAnchor="middle" fontSize="3.2" fill="var(--text-secondary)">{item.label.slice(5)}</text>
+            <text x={x + barWidth / 2} y={height + 10} textAnchor="middle" fontSize="3.2" fill="var(--text-secondary)">{tick}</text>
           </g>
         );
       })}

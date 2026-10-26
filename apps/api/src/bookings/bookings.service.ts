@@ -1,8 +1,9 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { BOOKING_STATUS_TRANSITIONS, BookingStatus, ClosureStatus } from "@bsc/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import { EventsService } from "../events/events.service";
+import { assertNoClash } from "./booking-time";
 import { CreateBookingDto } from "./dto/create-booking.dto";
 
 const BOOKING_INCLUDE = {
@@ -106,24 +107,12 @@ export class BookingsService {
     });
   }
 
-  /** Conflict detection (Section 4.4): reject overlapping slots on the same facility/day. */
-  private async assertNoConflict(facilityId: string, date: string, start: string, end: string, excludeId?: string) {
-    const overlapping = await this.prisma.booking.findFirst({
-      where: {
-        id: excludeId ? { not: excludeId } : undefined,
-        facilityId,
-        date: dayRange(date),
-        status: { in: [BookingStatus.PENDING, BookingStatus.CONFIRMED] },
-        timeSlotStart: { lt: end },
-        timeSlotEnd: { gt: start },
-      },
-    });
-    if (overlapping) {
-      throw new ConflictException("This facility already has a pending or confirmed booking in that time slot");
-    }
+  /** Conflict detection (Section 4.4) with the facility's setup buffer on both sides. */
+  private assertNoConflict(facilityId: string, date: string, start: string, end: string, excludeId?: string) {
+    return assertNoClash(this.prisma, { facilityId, date: new Date(date), start, end, excludeId });
   }
 
-  async create(dto: CreateBookingDto, userId: string) {
+  async create(dto: CreateBookingDto, userId: string, customerId?: string) {
     await this.assertSurfaceOpen(dto.facilityId);
     await this.assertNoConflict(dto.facilityId, dto.date, dto.timeSlotStart, dto.timeSlotEnd);
     const booking = await this.prisma.booking.create({
@@ -139,6 +128,7 @@ export class BookingsService {
         featureKey: dto.featureKey ?? "",
         detail: dto.detail?.trim() ?? "",
         createdById: userId,
+        customerId,
       },
     });
     await this.audit.record({ entityType: "Booking", entityId: booking.id, action: "CREATE", userId, after: booking });

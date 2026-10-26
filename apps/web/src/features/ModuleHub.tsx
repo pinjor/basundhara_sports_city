@@ -1,4 +1,9 @@
 import { Link } from "react-router-dom";
+import { BookingStatus } from "@bsc/shared";
+import { ModuleTabs } from "../components/layout/ModuleTabs";
+
+/** Modules with a full record manager (list, detail, edit) behind `?view=records`. */
+export const RECORD_PAGES = new Set(["/zones", "/facilities", "/bookings", "/membership", "/gates", "/visitors", "/vip", "/lounges", "/outlets", "/parking", "/fleet", "/surfaces"]);
 import { useActiveFeature } from "../hooks/useActiveFeature";
 import { featurePreset } from "../lib/featurePresets";
 import { featureStage } from "./featureStage";
@@ -151,6 +156,9 @@ interface HubCtx {
   tasks: { id: string; title: string; status: string; area: string; eventPack?: { id: string } | null }[];
 }
 
+const BUSY_SHARE = 0.8;
+const loadStatus = (used: number, capacity: number) => (capacity > 0 && used >= capacity ? "Full" : capacity > 0 && used / capacity >= BUSY_SHARE ? "Busy" : "Available");
+
 function snapshot(path: string, ctx: HubCtx): { title: string; meta: string; status: string }[] {
   if (path === "/fleet") {
     return [
@@ -159,7 +167,11 @@ function snapshot(path: string, ctx: HubCtx): { title: string; meta: string; sta
     ].slice(0, 6);
   }
   if (path === "/bookings" || path === "/approvals" || path === "/calendar") {
-    return ctx.bookings.slice(0, 6).map((b) => ({ title: b.customerName, meta: `${b.facility?.name ?? "Venue"} · ${String(b.date).slice(0, 10)} ${b.timeSlotStart}`, status: b.status }));
+    const day = (b: HubCtx["bookings"][number]) => `${String(b.date).slice(0, 10)} ${b.timeSlotStart}`;
+    const today = new Date().toISOString().slice(0, 10);
+    const pool = ctx.bookings.filter((b) => (path === "/approvals" ? b.status === BookingStatus.PENDING : b.status !== BookingStatus.CANCELLED));
+    const upcoming = pool.filter((b) => day(b) >= today).sort((a, b) => day(a).localeCompare(day(b)));
+    return (upcoming.length ? upcoming : pool).slice(0, 6).map((b) => ({ title: b.customerName, meta: `${b.facility?.name ?? "Venue"} · ${String(b.date).slice(0, 10)} ${b.timeSlotStart}`, status: b.status }));
   }
   if (path === "/vip") return ctx.vips.slice(0, 6).map((v) => ({ title: v.name, meta: v.classification, status: v.status }));
   if (path === "/visitors") return ctx.visitors.slice(0, 6).map((v) => ({ title: v.name, meta: v.category, status: v.status }));
@@ -167,12 +179,33 @@ function snapshot(path: string, ctx: HubCtx): { title: string; meta: string; sta
   if (path === "/facilities") return ctx.facilities.slice(0, 6).map((f) => ({ title: f.name, meta: f.type, status: f.status }));
   if (path === "/zones") return ctx.zones.slice(0, 6).map((z) => ({ title: z.name, meta: `${z.type} · ${z.liveOccupancy}/${z.capacity}`, status: z.status }));
   if (path === "/membership") return ctx.members.slice(0, 6).map((m) => ({ title: m.name, meta: m.tier, status: m.status }));
-  if (path === "/lounges") return ctx.lounges.slice(0, 6).map((l) => ({ title: l.name, meta: `${l.currentOccupancy}/${l.capacity}`, status: "Open" }));
+  if (path === "/lounges") return ctx.lounges.slice(0, 6).map((l) => ({ title: l.name, meta: `${l.currentOccupancy}/${l.capacity} guests`, status: loadStatus(l.currentOccupancy, l.capacity) }));
   if (path === "/outlets") return ctx.outlets.slice(0, 6).map((o) => ({ title: o.name, meta: o.type, status: o.status }));
-  if (path === "/parking") return ctx.parking.slice(0, 6).map((z) => ({ title: z.name, meta: `${z.occupied}/${z.capacity}`, status: z.type }));
+  if (path === "/parking") return ctx.parking.slice(0, 6).map((z) => ({ title: z.name, meta: `${z.type} · ${z.occupied}/${z.capacity}`, status: loadStatus(z.occupied, z.capacity) }));
   if (path === "/surfaces") return ctx.surfaces.slice(0, 6).map((s) => ({ title: s.surfaceType, meta: "Playing surface", status: s.closureStatus }));
-  if (path === "/tasks") return ctx.tasks.slice(0, 6).map((t) => ({ title: t.title, meta: t.area, status: t.status }));
+  if (path === "/tasks") return ctx.tasks.filter((t) => t.status !== "Done").slice(0, 6).map((t) => ({ title: t.title, meta: t.area, status: t.status }));
   return [];
+}
+
+const HUB_LISTS: Record<string, [string, (ctx: HubCtx) => { status: string }[]]> = {
+  "/gates": ["Gates", (c) => c.gates],
+  "/visitors": ["Visitors", (c) => c.visitors],
+  "/vip": ["VIP guests", (c) => c.vips],
+  "/facilities": ["Venues", (c) => c.facilities],
+  "/membership": ["Members", (c) => c.members],
+  "/outlets": ["Outlets", (c) => c.outlets],
+  "/lounges": ["Service requests", (c) => c.requests],
+  "/parking": ["Parking zones", (c) => c.parking.map((z) => ({ status: loadStatus(z.occupied, z.capacity) }))],
+  "/surfaces": ["Surfaces", (c) => c.surfaces.map((s) => ({ status: s.closureStatus }))],
+};
+
+const STATUS_TONES = ["teal", "blue", "red"] as const;
+
+function statusTiles(label: string, rows: { status: string }[]) {
+  const counts = new Map<string, number>();
+  for (const row of rows) counts.set(row.status, (counts.get(row.status) ?? 0) + 1);
+  const top = [...counts].sort((a, b) => b[1] - a[1]).slice(0, 3);
+  return [{ label, value: rows.length, tone: "gold" as const }, ...top.map(([status, value], i) => ({ label: status, value, tone: STATUS_TONES[i] }))];
 }
 
 function kpisFor(path: string, ctx: HubCtx) {
@@ -200,6 +233,16 @@ function kpisFor(path: string, ctx: HubCtx) {
       { label: "Restricted", value: ctx.zones.filter((z) => z.status === "Restricted").length, tone: "red" as const },
     ];
   }
+  if (path === "/tasks") {
+    return [
+      { label: "Tasks", value: ctx.tasks.length, tone: "gold" as const },
+      { label: "Open", value: ctx.tasks.filter((t) => t.status !== "Done").length, tone: "blue" as const },
+      { label: "Done", value: ctx.tasks.filter((t) => t.status === "Done").length, tone: "teal" as const },
+      { label: "Event-linked", value: ctx.tasks.filter((t) => t.eventPack).length },
+    ];
+  }
+  const list = HUB_LISTS[path];
+  if (list) return statusTiles(list[0], list[1](ctx));
   return [
     { label: "Records", value: ctx.facilities.length + ctx.members.length + ctx.visitors.length, tone: "gold" as const },
     { label: "Venues", value: ctx.facilities.length, tone: "teal" as const },
@@ -263,9 +306,10 @@ export function ModuleHub() {
         <h2 className="mt-1 font-display text-4xl font-semibold gold-foil">{module?.label ?? "Module"}</h2>
         <p className="mt-3 max-w-3xl text-sm leading-relaxed text-text-dim">{hero.lede}</p>
         <p className="mt-2 text-xs text-gold/70">{features.length} desks · click one to leave this overview</p>
+        {module && RECORD_PAGES.has(path) && <div className="mt-4"><ModuleTabs path={path} /></div>}
       </header>
 
-      <div className="mb-8 grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="stat-row mb-8" style={{ ["--n" as string]: tiles.length }}>
         {tiles.map((tile) => (
           <StatTile key={tile.label} label={tile.label} value={tile.value} tone={tile.tone} />
         ))}

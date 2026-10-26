@@ -1,9 +1,24 @@
 import "reflect-metadata";
-import { ArgumentsHost, BadRequestException, Catch, ExceptionFilter, Logger, ValidationPipe } from "@nestjs/common";
+import { ArgumentsHost, Catch, ExceptionFilter, Logger, ValidationPipe } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
+import type { NestExpressApplication } from "@nestjs/platform-express";
+import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
+import helmet from "helmet";
 import type { ValidationError } from "class-validator";
 import * as classTransformer from "class-transformer";
 import { AppModule } from "./app.module";
+import { validationError } from "./common/validation";
+import { assertProductionConfig, corsOrigins } from "./config/env";
+
+/** Known Prisma request errors are client mistakes (duplicate key, bad reference), not server faults. */
+function prismaError(exception: unknown): { statusCode: number; message: string } | null {
+  const error = exception as { code?: unknown; meta?: { target?: unknown; field_name?: unknown } };
+  if (typeof error?.code !== "string" || !/^P2\d{3}$/.test(error.code)) return null;
+  if (error.code === "P2002") return { statusCode: 409, message: `Already exists: ${[error.meta?.target].flat().join(", ") || "duplicate value"}` };
+  if (error.code === "P2003") return { statusCode: 400, message: `Linked record not found (${String(error.meta?.field_name ?? "reference")})` };
+  if (error.code === "P2025") return { statusCode: 404, message: "Record not found" };
+  return null;
+}
 
 /**
  * On Windows the drive letter can be `D:` in one require path and `d:` in another.
@@ -16,6 +31,11 @@ class HttpErrorFilter implements ExceptionFilter {
 
   catch(exception: unknown, host: ArgumentsHost) {
     const response = host.switchToHttp().getResponse();
+    const prisma = prismaError(exception);
+    if (prisma) {
+      response.status(prisma.statusCode).json(prisma);
+      return;
+    }
     const withStatus = exception as { getStatus?: () => number; getResponse?: () => unknown; message?: string; stack?: string };
     const status = typeof withStatus?.getStatus === "function" ? withStatus.getStatus() : 500;
     if (status >= 500) this.logger.error(withStatus?.message ?? "Unhandled error", withStatus?.stack);
@@ -30,18 +50,30 @@ class HttpErrorFilter implements ExceptionFilter {
   }
 }
 
-function flattenValidation(errors: ValidationError[], prefix = ""): string[] {
-  const messages: string[] = [];
-  for (const error of errors) {
-    const path = prefix ? `${prefix}.${error.property}` : error.property;
-    if (error.constraints) messages.push(...Object.values(error.constraints).map((message) => `${path}: ${message}`));
-    if (error.children?.length) messages.push(...flattenValidation(error.children, path));
-  }
-  return messages.length ? messages : ["Invalid request"];
+function setupDocs(app: NestExpressApplication) {
+  const config = new DocumentBuilder()
+    .setTitle("Bashundhara Sports City API")
+    .setDescription(
+      [
+        "Staff dashboards sign in at /auth/login; the customer app signs in at /customer/auth/login.",
+        "Send the access token as `Authorization: Bearer <token>`. It is short-lived: swap the refresh token at the matching /refresh route before it expires.",
+        "Order, payment and cancellation calls need an `Idempotency-Key` header (any unique string per attempt).",
+      ].join("\n\n"),
+    )
+    .setVersion(process.env.APP_VERSION ?? "1.0")
+    .addBearerAuth()
+    .build();
+  SwaggerModule.setup("api/docs", app, SwaggerModule.createDocument(app, config), { jsonDocumentUrl: "api/docs-json" });
 }
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, { cors: true });
+  const logger = new Logger("Bootstrap");
+  const warnings = assertProductionConfig();
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { cors: { origin: corsOrigins(), exposedHeaders: ["Idempotent-Replayed"] } });
+  if (process.env.TRUST_PROXY) app.set("trust proxy", Number(process.env.TRUST_PROXY) || process.env.TRUST_PROXY);
+  app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
+  app.useBodyParser("json", { limit: "1mb" });
+  app.enableShutdownHooks();
   app.setGlobalPrefix("api");
   app.useGlobalFilters(new HttpErrorFilter());
   app.useGlobalPipes(
@@ -52,17 +84,13 @@ async function bootstrap() {
       // Same class-transformer instance the DTOs decorated. A second copy
       // (drive-letter case on Windows) drops @Type metadata and rejects nested fields.
       transformerPackage: classTransformer,
-      exceptionFactory: (errors: ValidationError[]) =>
-        new BadRequestException({
-          statusCode: 400,
-          message: flattenValidation(errors),
-          error: "Bad Request",
-        }),
+      exceptionFactory: (errors: ValidationError[]) => validationError(errors),
     }),
   );
+  if (process.env.API_DOCS !== "false") setupDocs(app);
   const port = process.env.PORT ? Number(process.env.PORT) : 18481;
   await app.listen(port);
-  // eslint-disable-next-line no-console
-  console.log(`BSC API listening on :${port}`);
+  warnings.forEach((warning) => logger.warn(warning));
+  logger.log(`BSC API listening on :${port}`);
 }
 bootstrap();

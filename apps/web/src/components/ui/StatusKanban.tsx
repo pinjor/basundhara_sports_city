@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { Button } from "./Button";
+import { statusLabel } from "./StatusBadge";
 
 interface StatusKanbanProps<T> {
   columns: string[];
@@ -24,13 +25,16 @@ export function StatusKanban<T>({
   advancing,
 }: StatusKanbanProps<T>) {
   return (
-    <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${columns.length}, minmax(0, 1fr))` }}>
+    <div
+      className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:[grid-template-columns:repeat(var(--cols),minmax(0,1fr))]"
+      style={{ ["--cols" as string]: columns.length }}
+    >
       {columns.map((col) => {
         const colItems = items.filter((item) => statusOf(item) === col);
         return (
-          <div key={col} className="rounded-lg border border-gold/20 bg-surface-2 p-3">
-            <div className="mb-3 flex items-center justify-between">
-              <h4 className="text-xs font-semibold uppercase tracking-[0.16em] text-gold/70">{col}</h4>
+          <div key={col} className="panel min-w-0 p-3">
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <h4 className="min-w-0 truncate text-xs font-semibold uppercase tracking-[0.16em] text-gold/70">{statusLabel(col)}</h4>
               <span className="rounded-full bg-surface-2 px-2 py-0.5 text-xs text-text-dim">{colItems.length}</span>
             </div>
             <div className="space-y-2">
@@ -46,7 +50,7 @@ export function StatusKanban<T>({
                         onClick={() => onAdvance(item, next)}
                         disabled={advancing}
                       >
-                        Advance to {next}
+                        Advance to {statusLabel(next)}
                       </Button>
                     )}
                   </div>

@@ -117,8 +117,8 @@ export function EventPage() {
           {seats.isLoading && <LoadingSkeleton rows={2} />}
           {seats.isError && <ErrorState message={apiErrorMessage(seats.error, t("common.error"))} onRetry={() => void seats.refetch()} />}
           {seats.data && section && (
-            <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_280px]">
-              <div className="panel p-4">
+            <div className="mt-4 grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
+              <div className="panel min-w-0 p-4">
                 <div className="mb-3 flex flex-wrap gap-2" role="tablist">
                   {seats.data.sections.map((item) => (
                     <button key={item.id} type="button" role="tab" aria-selected={item.id === section.id} className={`min-h-11 rounded-md px-3 text-sm ${item.id === section.id ? "gold-btn" : "border border-[var(--border-strong)]"}`} onClick={() => setSectionId(item.id)}>

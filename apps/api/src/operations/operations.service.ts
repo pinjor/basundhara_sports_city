@@ -27,14 +27,6 @@ export class OperationsService {
     });
   }
 
-  listNotifications(take = 20) {
-    return this.prisma.notification.findMany({ orderBy: { createdAt: "desc" }, take });
-  }
-
-  async markNotificationRead(id: string) {
-    return this.prisma.notification.update({ where: { id }, data: { read: true } });
-  }
-
   async search(q: string) {
     const query = q.trim();
     if (query.length < 2) return { facilities: [], bookings: [], members: [], visitors: [], vips: [], equipment: [], vehicles: [] };

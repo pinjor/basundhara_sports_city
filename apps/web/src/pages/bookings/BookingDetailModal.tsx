@@ -62,7 +62,7 @@ export function BookingDetailModal({ bookingId, onClose }: { bookingId: string |
                 <div className="text-sm text-text">{booking.eventPack.title}</div>
                 <StatusBadge status={booking.eventPack.status} />
               </div>
-              <Link to={`/?event=${booking.eventPack.id}`} className="text-sm text-gold hover:text-gold-soft" onClick={onClose}>
+              <Link to={`/?view=events&event=${booking.eventPack.id}`} className="text-sm text-gold hover:text-gold-soft" onClick={onClose}>
                 Open command board
               </Link>
             </div>

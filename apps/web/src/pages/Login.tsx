@@ -1,9 +1,17 @@
 import { useState, type FormEvent } from "react";
+import axios from "axios";
 import { Link, useNavigate } from "react-router-dom";
+import { motion, type Variants } from "framer-motion";
 import { ROLE_LABELS, Role, roleHomePath, type LoginResponseDto } from "@bsc/shared";
 import { api } from "../lib/api";
+import { EASE } from "../lib/motion";
 import { useAuthStore } from "../store/auth";
 import { BrandLogo } from "../components/BrandLogo";
+
+const RISE: Variants = {
+  hidden: { opacity: 0, y: 22 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.6, ease: EASE } },
+};
 
 const JOURNEY = ["Play", "Move", "Shop", "Relax", "Connect"] as const;
 
@@ -18,9 +26,18 @@ const DEMO_ACCOUNTS = [
   { email: "security@bsc.com.bd", role: Role.SECURITY_MANAGER },
 ] as const;
 
+function signInError(error: unknown): string {
+  const status = axios.isAxiosError(error) ? error.response?.status : undefined;
+  if (status === 401) return "Invalid email or password.";
+  if (status === 400) return "Enter a valid email and a password of at least 6 characters.";
+  if (status === 429) return "Too many sign-in attempts. Wait a minute and try again.";
+  return "Can't reach the server right now. Try again in a moment.";
+}
+
 export function Login() {
   const [email, setEmail] = useState("admin@bsc.com.bd");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const setSession = useAuthStore((s) => s.setSession);
@@ -36,10 +53,10 @@ export function Login() {
         email: nextEmail,
         password: nextPassword,
       });
-      setSession(data.accessToken, data.user);
+      setSession(data, data.user);
       navigate(roleHomePath(data.user.role), { replace: true });
-    } catch {
-      setError("Invalid email or password.");
+    } catch (err) {
+      setError(signInError(err));
     } finally {
       setLoading(false);
     }
@@ -51,7 +68,7 @@ export function Login() {
   }
 
   return (
-    <div className="relative min-h-screen overflow-x-hidden bg-bg text-text">
+    <div className="relative min-h-screen overflow-x-clip bg-bg text-text">
       <img
         src="/login-hero.jpg"
         alt=""
@@ -115,16 +132,28 @@ export function Login() {
                 <span className="gold-foil mb-2 block text-[11px] font-semibold uppercase tracking-[0.18em]">
                   Password
                 </span>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  autoComplete="current-password"
-                  className="w-full rounded-lg border border-gold/25 bg-search px-4 py-3 text-sm text-text outline-none transition-colors placeholder:text-text-dimmer focus-visible:border-gold-soft"
-                />
+                <span className="relative block">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    autoComplete="current-password"
+                    className="w-full rounded-lg border border-gold/25 bg-search py-3 pl-4 pr-12 text-sm text-text outline-none transition-colors placeholder:text-text-dimmer focus-visible:border-gold-soft"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((shown) => !shown)}
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    aria-pressed={showPassword}
+                    title={showPassword ? "Hide password" : "Show password"}
+                    className="absolute inset-y-0 right-1 my-auto flex h-10 w-10 items-center justify-center rounded-md text-text-dim transition-colors hover:text-gold-soft focus-visible:text-gold-soft focus-visible:outline focus-visible:outline-1 focus-visible:outline-gold-soft"
+                  >
+                    <EyeIcon off={showPassword} />
+                  </button>
+                </span>
               </label>
-              {error && <p className="text-sm text-red">{error}</p>}
+              {error && <p role="alert" className="text-sm text-red">{error}</p>}
               <button type="submit" disabled={loading} className="gold-btn w-full rounded-lg py-3.5 font-display text-lg font-bold tracking-[0.14em] disabled:cursor-not-allowed disabled:opacity-50">
                 {loading ? "SIGNING IN…" : "ENTER COMMAND CENTRE"}
               </button>
@@ -164,5 +193,15 @@ export function Login() {
         </aside>
       </div>
     </div>
+  );
+}
+
+function EyeIcon({ off }: { off: boolean }) {
+  return (
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" />
+      <circle cx="12" cy="12" r="3" />
+      {off && <path d="M4 4l16 16" />}
+    </svg>
   );
 }

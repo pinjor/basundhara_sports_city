@@ -233,11 +233,12 @@ export class TicketingService {
     };
   }
 
-  async createOrder(dto: CreateTicketOrderDto, idempotencyKey: string | undefined) {
-    return this.withIdempotency("ticket-order", idempotencyKey, dto, () => this.createOrderInner(dto));
+  async createOrder(dto: CreateTicketOrderDto, idempotencyKey: string | undefined, customerId?: string) {
+    const payload = customerId ? { ...dto, customerId } : dto;
+    return this.withIdempotency("ticket-order", idempotencyKey, payload, () => this.createOrderInner(dto, customerId));
   }
 
-  private async createOrderInner(dto: CreateTicketOrderDto) {
+  private async createOrderInner(dto: CreateTicketOrderDto, customerId?: string) {
     const unique = new Set(dto.seats.map((seat) => `${seat.sectionId}:${seat.rowLabel}:${seat.seatNumber}`));
     if (unique.size !== dto.seats.length) throw new BadRequestException("Duplicate seats in the request");
     if (dto.seats.length > MAX_SEATS) throw new BadRequestException(`At most ${MAX_SEATS} seats per order`);
@@ -293,6 +294,7 @@ export class TicketingService {
             vat,
             total: money(subtotal + vat),
             termsAccepted: true,
+            customerId,
             items: { create: resolved },
           },
         });

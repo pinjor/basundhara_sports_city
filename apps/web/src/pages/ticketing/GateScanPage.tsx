@@ -1,11 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { canWriteModule } from "@bsc/shared";
+import { DeskHeader } from "../../components/ui/DeskHeader";
 import { useGates } from "../../api/gates";
 import { scanDeviceId, verifyTicket, type ScanDecision } from "../../api/ticketing";
 import { Button } from "../../components/ui/Button";
-import { useActiveFeature } from "../../hooks/useActiveFeature";
-import { FeatureRegister } from "../platform/FeatureRegister";
-import { useAuthStore } from "../../store/auth";
+import { FeatureStrip } from "../platform/ResourceFeature";
 import { useI18n } from "../../lib/i18n";
 import { apiErrorMessage } from "../../lib/apiError";
 import axios from "axios";
@@ -109,23 +107,11 @@ export function GateScanPage() {
 
   const visual = result ? COPY[result.reason] ?? COPY.CREDENTIAL_INVALID : null;
 
-  const { feature, module } = useActiveFeature();
-  const role = useAuthStore((s) => s.user?.role);
-
   return (
-    <div className="mx-auto max-w-3xl">
-      {feature && (
-        <FeatureRegister
-          key={feature.key}
-          module="ticketing"
-          featureKey={feature.key}
-          featureLabel={feature.label}
-          canWrite={canWriteModule(role, module?.key ?? "")}
-        />
-      )}
-      <h1 className="font-display text-3xl uppercase text-[var(--brand-gold)]">{t("ops.scan")}</h1>
-      <p className="mt-1 text-sm text-text-dim">Offline admission is not enabled. A lost connection is manual review, not an allow.</p>
-      <div className="mt-4 flex flex-wrap gap-3">
+    <div className="max-w-3xl">
+      <FeatureStrip />
+      <DeskHeader kicker="Ticketing" title={t("ops.scan")} lede="Offline admission is not enabled. A lost connection is manual review, not an allow." />
+      <div className="flex flex-wrap gap-3">
         <label className="text-sm">Gate
           <select value={gateId} onChange={(event) => setGateId(event.target.value)} className="mt-1 block min-h-11 rounded-md border border-[var(--border-strong)] bg-[var(--surface-secondary)] px-3">
             <option value="">Any gate</option>
@@ -146,7 +132,9 @@ export function GateScanPage() {
           <input value={token} onChange={(event) => setToken(event.target.value)} autoComplete="off" className="mt-1 min-h-12 w-full rounded-md border border-[var(--border-strong)] bg-[var(--surface-secondary)] px-3 font-mono" />
         </label>
         <Button type="submit" className="mt-6">Check</Button>
-        <Button type="button" variant="secondary" className="mt-6" onClick={() => { setLane("manual"); setResult(null); }}>Hold lane</Button>
+        <Button type="button" variant="secondary" className="mt-6" aria-pressed={lane === "manual"} onClick={() => { setLane(lane === "manual" ? "ready" : "manual"); setResult(null); }}>
+          {lane === "manual" ? "Resume lane" : "Hold lane"}
+        </Button>
       </form>
 
       <div

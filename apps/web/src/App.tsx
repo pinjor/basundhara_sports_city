@@ -5,7 +5,7 @@ import { useAuthStore } from "./store/auth";
 import { AppShell } from "./components/layout/AppShell";
 import { useActiveFeature } from "./hooks/useActiveFeature";
 import { FeatureWorkspace } from "./features/FeatureWorkspace";
-import { ModuleHub } from "./features/ModuleHub";
+import { ModuleHub, RECORD_PAGES } from "./features/ModuleHub";
 import { Login } from "./pages/Login";
 import { CommandCentre } from "./pages/CommandCentre";
 import { ZonesPage } from "./pages/zones/ZonesPage";
@@ -23,7 +23,7 @@ import { SurfacesPage } from "./pages/surfaces/SurfacesPage";
 import { CalendarPage } from "./pages/operations/CalendarPage";
 import { TasksPage } from "./pages/operations/TasksPage";
 import { ApprovalsPage } from "./pages/operations/ApprovalsPage";
-import { PlaceholderModule } from "./pages/PlaceholderModule";
+import { NoAccess } from "./pages/NoAccess";
 import { TicketsHome, EventsListPage } from "./pages/tickets/TicketsHome";
 import { EventPage } from "./pages/tickets/EventPage";
 import { CheckoutPage } from "./pages/tickets/CheckoutPage";
@@ -31,6 +31,8 @@ import { HelpPage, MyBookingsPage, OrderPage } from "./pages/tickets/OrderPages"
 import { TicketingEventsPage, TicketingOrdersPage, TicketingOverview, TicketingPaymentsPage, TicketingReportsPage } from "./pages/ticketing/TicketingOps";
 import { GateScanPage } from "./pages/ticketing/GateScanPage";
 import { SpecModulePage } from "./pages/platform/SpecModulePage";
+import { isRegistryFeature } from "./pages/platform/ResourceFeature";
+import { SecurityRegisters } from "./pages/security/SecurityRegisters";
 import { DashFrame } from "./pages/dashboards/DashFrame";
 import { DashSettings } from "./pages/dashboards/DashSettings";
 import { RevenueDashboard } from "./pages/dashboards/RevenueDashboard";
@@ -38,9 +40,10 @@ import { HrDashboard } from "./pages/dashboards/HrDashboard";
 import { BookingDashboard } from "./pages/dashboards/BookingDashboard";
 import { SecurityDashboard } from "./pages/dashboards/SecurityDashboard";
 import { ChairmanDashboard } from "./pages/dashboards/ChairmanDashboard";
+import { SuperAdminDashboard } from "./pages/dashboards/SuperAdminDashboard";
 import { ReadOnlyContext } from "./pages/dashboards/widgets";
 
-const DASH_ROLES = new Set<string>([Role.BOOKINGS_OFFICER, Role.FINANCE_CONTROLLER, Role.HR_MANAGER, Role.SECURITY_MANAGER, Role.CHAIRMAN]);
+const DASH_ROLES = new Set<string>([Role.BOOKINGS_OFFICER, Role.FINANCE_CONTROLLER, Role.HR_MANAGER, Role.SECURITY_MANAGER, Role.CHAIRMAN, Role.SUPER_ADMIN]);
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const token = useAuthStore((s) => s.token);
@@ -86,18 +89,23 @@ const MODULE_PAGES: Record<string, () => JSX.Element> = {
   "/hrm": SpecModulePage,
 };
 
+/** Sends a role to its home page; a role that cannot open its own home sees NoAccess instead of looping. */
+function GoHome({ from }: { from: string }) {
+  const role = useAuthStore((s) => s.user?.role);
+  const home = roleHomePath(role);
+  return home === from ? <NoAccess /> : <Navigate to={home} replace />;
+}
+
 function RequireModule({ path, children }: { path: string; children: ReactNode }) {
   const role = useAuthStore((s) => s.user?.role);
   if (path === "/security") {
     if (role === Role.SECURITY_MANAGER || role === Role.SUPER_ADMIN || role === Role.CHAIRMAN) return <>{children}</>;
-    return <Navigate to={roleHomePath(role)} replace />;
+    return <GoHome from={path} />;
   }
   if (path === "/" && canAccessModule(role, "command-centre")) return <>{children}</>;
-  if (path === "/") return <Navigate to={roleHomePath(role)} replace />;
+  if (path === "/") return <GoHome from={path} />;
   const module = findModuleByPath(path);
-  if (module && !canAccessModule(role, module.key)) {
-    return <Navigate to={roleHomePath(role)} replace />;
-  }
+  if (module && !canAccessModule(role, module.key)) return <GoHome from={path} />;
   return <>{children}</>;
 }
 
@@ -109,6 +117,7 @@ function ModulePage({ path, children }: { path: string; children: ReactNode }) {
   const base = MODULE_TITLES[path] ?? "";
   const title = feature?.label ? `${base} · ${feature.label}` : base;
   const dash = !!role && DASH_ROLES.has(role);
+  const adminHome = role === Role.SUPER_ADMIN && path === "/" && view !== "events";
   if (role === Role.CHAIRMAN && path === "/") return <Navigate to="/chairman" replace />;
   const commandDesk =
     path === "/calendar" ||
@@ -124,13 +133,17 @@ function ModulePage({ path, children }: { path: string; children: ReactNode }) {
     ((view === "settings" || view === "help") ||
       (path === "/finance" && role === Role.FINANCE_CONTROLLER) ||
       (path === "/hrm" && role === Role.HR_MANAGER) ||
-      (path === "/bookings" && role === Role.BOOKINGS_OFFICER));
+      (path === "/bookings" && role === Role.BOOKINGS_OFFICER && view !== "records") ||
+      adminHome);
   let body: ReactNode;
   if (dash && (view === "settings" || view === "help") && !featureKey) body = <DashSettings kind={view} />;
   else if (dash && path === "/finance" && role === Role.FINANCE_CONTROLLER && !featureKey) body = <RevenueDashboard />;
   else if (dash && path === "/hrm" && role === Role.HR_MANAGER && !featureKey) body = <HrDashboard />;
-  else if (dash && path === "/bookings" && role === Role.BOOKINGS_OFFICER && !featureKey) body = <BookingDashboard />;
+  else if (dash && path === "/bookings" && role === Role.BOOKINGS_OFFICER && !featureKey && view !== "records") body = <BookingDashboard />;
+  else if (adminHome && !featureKey) body = <SuperAdminDashboard />;
   else if (path === "/" || commandDesk) body = children;
+  else if (view === "records" && !featureKey && RECORD_PAGES.has(path)) body = children;
+  else if (isRegistryFeature(featureKey)) body = <SpecModulePage />;
   else if (featureKey) body = <FeatureWorkspace key={featureKey} />;
   else body = <ModuleHub />;
   if (dash && role === Role.CHAIRMAN)
@@ -145,12 +158,11 @@ function ModulePage({ path, children }: { path: string; children: ReactNode }) {
 
 function SecurityHome() {
   const role = useAuthStore((s) => s.user?.role);
-  const frameRole = role === Role.SUPER_ADMIN ? Role.SECURITY_MANAGER : role;
   const view = new URLSearchParams(useLocation().search).get("view");
   return (
     <ReadOnlyContext.Provider value={role === Role.CHAIRMAN}>
-      <DashFrame roleKey={frameRole}>
-        {view === "settings" || view === "help" ? <DashSettings kind={view} roleKey={frameRole} /> : <SecurityDashboard />}
+      <DashFrame light={view === "records"}>
+        {view === "settings" || view === "help" ? <DashSettings kind={view} /> : view === "records" ? <SecurityRegisters /> : <SecurityDashboard />}
       </DashFrame>
     </ReadOnlyContext.Provider>
   );
@@ -162,12 +174,18 @@ function RequireChair({ children }: { children: ReactNode }) {
   return <Navigate to={roleHomePath(role)} replace />;
 }
 
+function useChairFrame() {
+  const role = useAuthStore((s) => s.user?.role);
+  return role === Role.SUPER_ADMIN ? Role.SUPER_ADMIN : Role.CHAIRMAN;
+}
+
 function ChairHome() {
+  const frame = useChairFrame();
   const view = new URLSearchParams(useLocation().search).get("view");
   if (view === "settings" || view === "help")
     return (
-      <DashFrame roleKey={Role.CHAIRMAN}>
-        <DashSettings kind={view} roleKey={Role.CHAIRMAN} />
+      <DashFrame roleKey={frame}>
+        <DashSettings kind={view} roleKey={frame} />
       </DashFrame>
     );
   return <ChairmanDashboard />;
@@ -182,9 +200,10 @@ const DRILLS: Record<string, { Page: () => JSX.Element; photo: boolean }> = {
 
 function ChairDrill({ name }: { name: string }) {
   const { Page, photo } = DRILLS[name];
+  const frame = useChairFrame();
   return (
-    <ReadOnlyContext.Provider value>
-      <DashFrame roleKey={Role.CHAIRMAN} photo={photo}>
+    <ReadOnlyContext.Provider value={frame === Role.CHAIRMAN}>
+      <DashFrame roleKey={frame} photo={photo}>
         <Page />
       </DashFrame>
     </ReadOnlyContext.Provider>
@@ -222,7 +241,7 @@ export default function App() {
               <RequireAuth>
                 <RequireModule path={mod.path}>
                   <ModulePage path={mod.path}>
-                    {Page ? <Page /> : <PlaceholderModule label={mod.label} phase={mod.phase} />}
+                    {Page && <Page />}
                   </ModulePage>
                 </RequireModule>
               </RequireAuth>

@@ -1,4 +1,4 @@
-import { Body, Controller, createParamDecorator, ExecutionContext, Get, Param, Post, Query, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Param, Post, Query, UseGuards } from "@nestjs/common";
 import { Role } from "@bsc/shared";
 import { CurrentUser, type RequestUser } from "../auth/current-user.decorator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
@@ -14,29 +14,7 @@ import {
   VerifyAccessDto,
 } from "./dto/ticketing.dto";
 import { TicketingService } from "./ticketing.service";
-
-interface IdempotencyHandle {
-  key?: string;
-  markReplayed: () => void;
-}
-
-/** Reads the header without putting the Express response through the validation pipe. */
-const Idempotency = createParamDecorator((_: unknown, ctx: ExecutionContext): IdempotencyHandle => {
-  const req = ctx.switchToHttp().getRequest();
-  const raw = req.headers["idempotency-key"];
-  const key = Array.isArray(raw) ? raw[0] : raw;
-  return {
-    key,
-    markReplayed() {
-      req.res?.setHeader("Idempotent-Replayed", "true");
-    },
-  };
-});
-
-function replay<T>(handle: IdempotencyHandle, result: { body: T; replayed: boolean }) {
-  if (result.replayed) handle.markReplayed();
-  return result.body;
-}
+import { Idempotency, replay, type IdempotencyHandle } from "./idempotency";
 
 @Controller("ticketing")
 export class TicketingPublicController {

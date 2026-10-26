@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQueryText } from "../../hooks/useQueryText";
 import { BookingStatus, Role } from "@bsc/shared";
 import { ModuleHeader } from "../../components/layout/ModuleHeader";
 import { useFeaturePreset } from "../../lib/featurePresets";
@@ -14,14 +15,24 @@ import { BookingFormModal } from "./BookingFormModal";
 import { BookingDetailModal } from "./BookingDetailModal";
 import type { BookingDto } from "@bsc/shared";
 
+function downloadCsv(rows: BookingDto[]) {
+  const cell = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  const header = ["Customer", "Facility", "Type", "Date", "Start", "End", "Amount (BDT)", "Payment", "Status"];
+  const lines = rows.map((b) => [b.customerName, b.facility?.name, b.type, String(b.date).slice(0, 10), b.timeSlotStart, b.timeSlotEnd, Number(b.amount), b.paymentStatus, b.status].map(cell).join(","));
+  const url = URL.createObjectURL(new Blob([[header.map(cell).join(","), ...lines].join("\n")], { type: "text/csv;charset=utf-8" }));
+  const a = Object.assign(document.createElement("a"), { href: url, download: `bookings-${new Date().toISOString().slice(0, 10)}.csv` });
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export function BookingsPage() {
-  const [status, setStatus] = useState("");
-  const [search, setSearch] = useState("");
+  const [status, setStatus] = useQueryText("status");
+  const [search, setSearch] = useQueryText();
   const [type, setType] = useState("");
   useFeaturePreset((preset) => {
     setType(preset.type ?? "");
-    setStatus(preset.status ?? "");
-    setSearch(preset.search ?? "");
+    setStatus(preset.status ?? status);
+    setSearch(preset.search ?? search);
   });
   const [createOpen, setCreateOpen] = useState(false);
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
@@ -54,7 +65,12 @@ export function BookingsPage() {
     <div>
       <ModuleHeader
         purpose="Online, member, corporate and academy bookings across every field, court, lane and event space."
-        action={canManage && <Button onClick={() => setCreateOpen(true)}>+ New booking</Button>}
+        action={
+          <>
+            <Button variant="secondary" disabled={bookings.length === 0} onClick={() => downloadCsv(bookings)}>Export CSV</Button>
+            {canManage && <Button onClick={() => setCreateOpen(true)}>+ New booking</Button>}
+          </>
+        }
       />
 
       <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -64,7 +80,7 @@ export function BookingsPage() {
         <StatTile label="Revenue (excl. cancelled)" value={revenue} prefix="৳" />
       </div>
 
-      <div className="mb-4 grid gap-3 rounded-lg border border-border bg-surface-2 p-4 sm:grid-cols-3">
+      <div className="mb-4 grid gap-3 panel p-4 sm:grid-cols-3">
         <TextInput placeholder="Search by customer…" value={search} onChange={(e) => setSearch(e.target.value)} />
         <SelectInput value={status} onChange={(e) => setStatus(e.target.value)}>
           <option value="">All statuses</option>

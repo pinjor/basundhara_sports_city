@@ -2,7 +2,8 @@ import { useEffect, useState, type ReactNode, type SVGProps } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { ROLE_LABELS, Role, canAccessModule, findModuleByPath } from "@bsc/shared";
 import { useAuthStore } from "../../store/auth";
-import { useNotifications, useSearch } from "../../api/operations";
+import { signOut } from "../../lib/api";
+import { useSearch } from "../../api/operations";
 import { useI18n } from "../../lib/i18n";
 import { usePrefs } from "../../lib/prefs";
 import { displayName } from "../../lib/user";
@@ -80,7 +81,6 @@ function SignOutIcon(props: SVGProps<SVGSVGElement>) {
 
 export function TopBar({ title, onMenu }: { title: string; onMenu?: () => void }) {
   const user = useAuthStore((s) => s.user);
-  const logout = useAuthStore((s) => s.logout);
   const { t } = useI18n();
   const location = useLocation();
   const lang = usePrefs((s) => s.lang);
@@ -91,8 +91,6 @@ export function TopBar({ title, onMenu }: { title: string; onMenu?: () => void }
   const [now, setNow] = useState(new Date());
   const [q, setQ] = useState("");
   const { data: results } = useSearch(q);
-  const { data: notes = [] } = useNotifications();
-  const unread = notes.filter((n) => !n.read).length;
 
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 1000);
@@ -101,10 +99,10 @@ export function TopBar({ title, onMenu }: { title: string; onMenu?: () => void }
 
   const hits = (results
     ? [
-        ...results.bookings.map((b) => ({ to: b.eventPack ? `/?event=${b.eventPack.id}` : "/bookings", label: `${b.customerName} · booking` })),
+        ...results.bookings.map((b) => ({ to: b.eventPack ? `/?view=events&event=${b.eventPack.id}` : "/bookings", label: `${b.customerName} · booking` })),
         ...results.facilities.map((f) => ({ to: "/facilities", label: `${f.name} · ${f.type}` })),
         ...results.members.map((m) => ({ to: "/membership", label: `${m.name} · member` })),
-        ...results.visitors.map((v) => ({ to: v.eventPackId ? `/?event=${v.eventPackId}` : "/visitors", label: `${v.name} · visitor` })),
+        ...results.visitors.map((v) => ({ to: v.eventPackId ? `/?view=events&event=${v.eventPackId}` : "/visitors", label: `${v.name} · visitor` })),
         ...results.vips.map((v) => ({ to: "/vip", label: `${v.name} · VIP` })),
         ...results.equipment.map((e) => ({ to: "/surfaces", label: `${e.name} · equipment` })),
         ...results.vehicles.map((v) => ({ to: "/fleet", label: `${v.type} · ${v.driverName ?? "vehicle"}` })),
@@ -161,14 +159,9 @@ export function TopBar({ title, onMenu }: { title: string; onMenu?: () => void }
       <div className="flex min-w-0 flex-wrap items-center gap-1 text-[var(--primary-gold)] lg:shrink-0 lg:flex-nowrap">
         {showOpsLinks && (
           <>
-            <Link to="/tasks" className="topbar-link relative inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-sm">
+            <Link to="/tasks" className="topbar-link inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-sm">
               <InboxIcon className="h-4 w-4" />
-              Inbox
-              {unread > 0 && (
-                <span className="absolute -right-0.5 -top-1 min-w-[16px] rounded-full bg-[var(--primary-gold)] px-1 text-center text-[10px] font-semibold text-[var(--navbar-bg)]">
-                  {unread}
-                </span>
-              )}
+              Tasks
             </Link>
             <span className="h-5 w-px bg-[var(--divider)]" />
             <Link to="/approvals" className="topbar-link inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-sm">
@@ -206,7 +199,7 @@ export function TopBar({ title, onMenu }: { title: string; onMenu?: () => void }
           {menuOpen && (
             <div role="menu" className="absolute right-0 top-full z-40 mt-2 min-w-44 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-elevated)] p-1 shadow-[var(--shadow-pop)]">
               <Link role="menuitem" to="/tickets" className="block rounded-md px-3 py-2 text-sm" onClick={() => setMenuOpen(false)}>{t("nav.tickets")}</Link>
-              <button role="menuitem" type="button" className="block w-full rounded-md px-3 py-2 text-left text-sm" onClick={logout}>{t("shell.signout")}</button>
+              <button role="menuitem" type="button" className="block w-full rounded-md px-3 py-2 text-left text-sm" onClick={signOut}>{t("shell.signout")}</button>
             </div>
           )}
         </div>

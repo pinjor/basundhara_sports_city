@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQueryText } from "../../hooks/useQueryText";
 import { MembershipTier, MemberStatus, Role, type MemberDto } from "@bsc/shared";
 import { ModuleHeader } from "../../components/layout/ModuleHeader";
 import { useFeaturePreset } from "../../lib/featurePresets";
@@ -15,11 +16,11 @@ import { MemberDetailModal } from "./MemberDetailModal";
 export function MembershipPage() {
   const [tier, setTier] = useState("");
   const [status, setStatus] = useState("");
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useQueryText();
   useFeaturePreset((preset) => {
     setTier(preset.tier ?? "");
     setStatus(preset.status ?? "");
-    setSearch(preset.search ?? "");
+    setSearch(preset.search ?? search);
   });
   const [createOpen, setCreateOpen] = useState(false);
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
@@ -46,14 +47,14 @@ export function MembershipPage() {
         action={canManage && <Button onClick={() => setCreateOpen(true)}>+ New member</Button>}
       />
 
-      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="stat-row mb-6">
         <StatTile label="Total members" value={members.length} tone="gold" />
         <StatTile label="Active" value={byStatus(MemberStatus.ACTIVE)} tone="teal" />
         <StatTile label="Frozen" value={byStatus(MemberStatus.FROZEN)} tone="blue" />
         <StatTile label="Expired" value={byStatus(MemberStatus.EXPIRED)} tone="red" />
       </div>
 
-      <div className="mb-4 grid gap-3 rounded-lg border border-border bg-surface-2 p-4 sm:grid-cols-3">
+      <div className="mb-4 grid gap-3 panel p-4 sm:grid-cols-3">
         <TextInput placeholder="Search members…" value={search} onChange={(e) => setSearch(e.target.value)} />
         <SelectInput value={tier} onChange={(e) => setTier(e.target.value)}>
           <option value="">All tiers</option>

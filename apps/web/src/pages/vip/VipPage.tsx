@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQueryText } from "../../hooks/useQueryText";
 import { VIPClassification, VIPStatus, Role } from "@bsc/shared";
 import { ModuleHeader } from "../../components/layout/ModuleHeader";
 import { useFeaturePreset } from "../../lib/featurePresets";
@@ -14,11 +15,11 @@ import { VipGuestDetailModal } from "./VipGuestDetailModal";
 export function VipPage() {
   const [classification, setClassification] = useState("");
   const [status, setStatus] = useState("");
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useQueryText();
   useFeaturePreset((preset) => {
     setClassification(preset.classification ?? "");
     setStatus(preset.status ?? "");
-    setSearch(preset.search ?? "");
+    setSearch(preset.search ?? search);
   });
   const [createOpen, setCreateOpen] = useState(false);
   const [selectedGuestId, setSelectedGuestId] = useState<string | null>(null);
@@ -48,7 +49,7 @@ export function VipPage() {
         <StatTile label="Departed" value={byStatus(VIPStatus.DEPARTED)} />
       </div>
 
-      <div className="mb-4 grid gap-3 rounded-lg border border-border bg-surface-2 p-4 sm:grid-cols-3">
+      <div className="mb-4 grid gap-3 panel p-4 sm:grid-cols-3">
         <TextInput placeholder="Search guests…" value={search} onChange={(e) => setSearch(e.target.value)} />
         <SelectInput value={classification} onChange={(e) => setClassification(e.target.value)}>
           <option value="">All classifications</option>
@@ -63,7 +64,7 @@ export function VipPage() {
       {isLoading ? (
         <p className="text-sm text-text-dim">Loading protocol list…</p>
       ) : (
-        <div className="rounded-lg border border-border bg-surface-2 p-4">
+        <div className="panel p-4">
           <h3 className="mb-4 font-display text-base font-semibold text-text">Arrival sequence</h3>
           <ol className="space-y-3">
             {sorted.map((guest, i) => (

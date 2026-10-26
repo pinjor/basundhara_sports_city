@@ -73,23 +73,19 @@ export function BookingBoard({
   });
 
   return (
-    <section className="overflow-hidden rounded-xl border border-[var(--border-strong)] bg-surface-2">
+    <section className="panel overflow-hidden">
       <div className="border-b border-[var(--border-strong)] px-5 py-4">
         <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-text-dim">Bookings</p>
         <h3 className="mt-1 font-display text-lg font-semibold text-text">{rows.length} on this feature</h3>
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[760px] border-collapse text-sm">
+        <table className="w-full min-w-[520px] border-collapse whitespace-nowrap text-sm">
           <thead>
             <tr className="border-b border-[var(--border-strong)] text-left text-xs uppercase tracking-[0.14em] text-text-dim">
               <th className="px-3 py-3 font-medium">Customer</th>
-              <th className="px-3 py-3 font-medium">Facility</th>
-              <th className="px-3 py-3 font-medium">Date</th>
-              <th className="px-3 py-3 font-medium">Start</th>
-              <th className="px-3 py-3 font-medium">End</th>
+              <th className="px-3 py-3 font-medium">When</th>
               <th className="px-3 py-3 font-medium">Type</th>
               <th className="px-3 py-3 font-medium">Amount</th>
-              <th className="px-3 py-3 font-medium">Payment</th>
               {extra && <th className="px-3 py-3 font-medium">{extra}</th>}
               {showQr && <th className="px-3 py-3 font-medium">QR</th>}
               {showConflict && <th className="px-3 py-3 font-medium">Conflict</th>}
@@ -107,14 +103,19 @@ export function BookingBoard({
                 className={`cursor-pointer border-b border-[var(--border-strong)] last:border-0 ${selectedId === row.id ? "bg-white/5" : ""}`}
                 onClick={() => onSelect(row.id)}
               >
-                <td className="px-3 py-3">{row.customerName}</td>
-                <td className="px-3 py-3">{row.facility?.name ?? "Venue"}</td>
-                <td className="px-3 py-3">{day(row.date)}</td>
-                <td className="px-3 py-3">{row.timeSlotStart}</td>
-                <td className="px-3 py-3">{row.timeSlotEnd}</td>
+                <td className="max-w-[16rem] px-3 py-3">
+                  <span className="block truncate">{row.customerName}</span>
+                  <span className="block truncate text-xs text-text-dim">{row.facility?.name ?? "Venue"}</span>
+                </td>
+                <td className="px-3 py-3">
+                  <span className="block">{day(row.date)}</span>
+                  <span className="block text-xs text-text-dim tabular-nums">{row.timeSlotStart}–{row.timeSlotEnd}</span>
+                </td>
                 <td className="px-3 py-3">{row.type}</td>
-                <td className="px-3 py-3">{Number(row.amount).toLocaleString()}</td>
-                <td className="px-3 py-3">{row.paymentStatus}</td>
+                <td className="px-3 py-3">
+                  <span className="block tabular-nums">{Number(row.amount).toLocaleString()}</span>
+                  <span className="block text-xs text-text-dim">{row.paymentStatus}</span>
+                </td>
                 {extra && <td className="px-3 py-3">{row.detail || "—"}</td>}
                 {showQr && <td className="px-3 py-3">{row.qrConfirmationCode.slice(0, 8)}</td>}
                 {showConflict && <td className="px-3 py-3">{clashes(row, bookings) ? "Overlap" : "Clear"}</td>}

@@ -1,26 +1,32 @@
+/** Token colour that still honours opacity modifiers such as `border-gold/20`. */
+const token = (name) => `color-mix(in srgb, var(${name}) calc(<alpha-value> * 100%), transparent)`;
+
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ["./index.html", "./src/**/*.{ts,tsx}"],
   theme: {
     extend: {
       colors: {
-        bg: "var(--navbar-bg)",
-        navbar: "var(--navbar-bg)",
-        surface: "var(--navbar-bg)",
-        "surface-2": "var(--search-bg)",
-        search: "var(--search-bg)",
-        border: "var(--border-gold)",
-        "border-soft": "var(--divider)",
-        divider: "var(--divider)",
-        gold: "var(--primary-gold)",
+        bg: token("--navbar-bg"),
+        navbar: token("--navbar-bg"),
+        surface: token("--navbar-bg"),
+        "surface-2": token("--search-bg"),
+        search: token("--search-bg"),
+        border: token("--border-gold"),
+        "border-soft": token("--divider"),
+        divider: token("--divider"),
+        gold: token("--primary-gold"),
         "gold-soft": "#F6C56A",
-        teal: "var(--status-success)",
-        red: "var(--status-danger)",
-        blue: "var(--status-info)",
-        text: "var(--primary-text)",
-        "text-dim": "var(--secondary-text)",
-        "text-dimmer": "var(--secondary-text)",
-        hover: "var(--hover-bg)",
+        teal: token("--status-success"),
+        red: token("--status-danger"),
+        blue: token("--status-info"),
+        text: token("--primary-text"),
+        "text-dim": token("--secondary-text"),
+        "text-dimmer": token("--secondary-text"),
+        hover: token("--hover-bg"),
+      },
+      borderColor: {
+        DEFAULT: "var(--border-subtle)",
       },
       fontFamily: {
         display: ["Rajdhani", "Noto Sans Bengali", "sans-serif"],

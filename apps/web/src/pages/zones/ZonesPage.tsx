@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQueryText } from "../../hooks/useQueryText";
 import { ZoneType, ZoneStatus, Role, type ZoneDto } from "@bsc/shared";
 import { ModuleHeader } from "../../components/layout/ModuleHeader";
 import { useFeaturePreset } from "../../lib/featurePresets";
@@ -16,11 +17,11 @@ import { ZoneDetailModal } from "./ZoneDetailModal";
 export function ZonesPage() {
   const [type, setType] = useState("");
   const [status, setStatus] = useState("");
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useQueryText();
   useFeaturePreset((preset) => {
     setType(preset.type ?? "");
     setStatus(preset.status ?? "");
-    setSearch(preset.search ?? "");
+    setSearch(preset.search ?? search);
   });
   const [createOpen, setCreateOpen] = useState(false);
   const [editingZone, setEditingZone] = useState<ZoneDto | null>(null);
@@ -63,7 +64,7 @@ export function ZonesPage() {
       <div className="mb-4">
         <ZoneMap zones={zones} onSelect={(z) => setSelectedZoneId(z.id)} />
       </div>
-      <div className="mb-4 grid gap-3 rounded-lg border border-border bg-surface-2 p-4 sm:grid-cols-3">
+      <div className="mb-4 grid gap-3 panel p-4 sm:grid-cols-3">
         <Field label="Search">
           <TextInput placeholder="Search zones…" value={search} onChange={(e) => setSearch(e.target.value)} />
         </Field>

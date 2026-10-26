@@ -85,6 +85,25 @@ const PATHS: Record<string, string> = {
 
 export type IconName = keyof typeof PATHS;
 
+const FACILITY_ICONS: [RegExp, string][] = [
+  [/stadium/i, "stadium"],
+  [/football|turf|futsal/i, "football"],
+  [/cricket/i, "bat"],
+  [/badminton/i, "shuttle"],
+  [/padel|squash/i, "racket"],
+  [/tennis/i, "tennis"],
+  [/basketball/i, "basket"],
+  [/swim|pool|aquatic/i, "swim"],
+  [/gym|training|athletic/i, "run"],
+  [/hall|arena|indoor/i, "building"],
+  [/restaurant|food/i, "plate"],
+];
+
+/** Icon for a facility type or sport name. */
+export function facilityIcon(type: string) {
+  return FACILITY_ICONS.find(([pattern]) => pattern.test(type))?.[1] ?? "layers";
+}
+
 export function Ico({ name, className, strokeWidth = 1.8 }: { name: string; className?: string; strokeWidth?: number }) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden>

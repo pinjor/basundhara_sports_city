@@ -42,7 +42,7 @@ export function Modal({ open, title, onClose, children, footer }: ModalProps) {
         aria-label={title}
         tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
-        className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-lg border border-gold/30 bg-surface-2 p-6 shadow-gold"
+        className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-[14px] border border-[var(--border-subtle)] bg-[var(--surface-primary)] p-6 shadow-[var(--shadow-pop)]"
       >
         <div className="mb-4 flex items-center justify-between">
           <h2 className="font-display text-xl font-semibold text-gold">{title}</h2>

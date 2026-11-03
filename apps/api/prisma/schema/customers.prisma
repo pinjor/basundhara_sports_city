@@ -4,17 +4,38 @@
 
 /// A member of the public who signs in to the mobile app. Separate from staff `User`.
 model Customer {
-  id           String   @id @default(uuid())
-  name         String
-  email        String   @unique
-  mobile       String   @unique
-  passwordHash String
-  active       Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id               String    @id @default(uuid())
+  name             String
+  email            String    @unique
+  mobile           String    @unique
+  passwordHash     String
+  active           Boolean   @default(true)
+  /// NID or Passport. Only the last four characters of the number are kept.
+  idType           String?
+  idLast4          String?
+  dob              DateTime? @db.Date
+  guardianName     String?
+  guardianMobile   String?
+  biometricConsent Boolean   @default(false)
+  faceEnrolled     Boolean   @default(false)
+  /// Consent history: [{ purpose, granted, at, version, channel, language }]
+  consents         Json      @default("[]")
+  /// Opaque reference printed on the customer's gate credential.
+  visitorRef       String    @unique @default(uuid())
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
-  ticketOrders TicketOrder[]
-  bookings     Booking[]
+  ticketOrders        TicketOrder[]
+  bookings            Booking[]
+  member              Member?
+  foodOrders          Order[]
+  parkingReservations ParkingReservation[]
+  trips               Trip[]
+  loungeHolds         ServiceRequest[]
+  guests              Visitor[]
+  passes              Credential[]
+  notifications       CustomerNotification[]
+  corrections         CustomerCorrection[]
 
   @@map("customers")
 }
@@ -37,4 +58,92 @@ model RefreshToken {
   @@index([subjectType, subjectId])
   @@index([familyId])
   @@map("refresh_tokens")
+}
+
+/// Messages shown in the customer app inbox (booking confirmed, ticket issued, ...).
+model CustomerNotification {
+  id         String    @id @default(uuid())
+  customerId String
+  customer   Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  title      String
+  body       String
+  readAt     DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([customerId, createdAt])
+  @@map("customer_notifications")
+}
+
+/// Membership products sold in the customer app.
+model MembershipPlan {
+  id             String   @id @default(uuid())
+  code           String   @unique
+  name           String
+  /// Customer-facing label, e.g. "Annual Membership".
+  label          String
+  /// MembershipTier written to the member record.
+  memberTier     String
+  priceBdt       Decimal  @db.Decimal(12, 2)
+  durationDays   Int      @default(365)
+  perks          Json     @default("[]")
+  /// Extra people who can share the plan.
+  maxHolders     Int      @default(0)
+  /// Paid by an employer through a corporate code instead of by the customer.
+  employerBilled Boolean  @default(false)
+  imageUrl       String?
+  active         Boolean  @default(true)
+  sortOrder      Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("membership_plans")
+}
+
+/// Employers whose staff can activate corporate membership with a code.
+model CorporateAccount {
+  id        String   @id @default(uuid())
+  code      String   @unique
+  name      String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("corporate_accounts")
+}
+
+model MembershipPayment {
+  id          String   @id @default(uuid())
+  reference   String   @unique
+  memberId    String
+  member      Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  planCode    String
+  amountBdt   Decimal  @db.Decimal(12, 2)
+  method      String
+  /// CAPTURED or FAILED
+  status      String
+  providerRef String
+  sandbox     Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  @@index([memberId])
+  @@map("membership_payments")
+}
+
+/// A request from the customer app to fix name, ID or date of birth. Front desk reviews it.
+model CustomerCorrection {
+  id         String    @id @default(uuid())
+  reference  String    @unique
+  customerId String
+  customer   Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  /// Name, ID number, Date of birth or Other
+  field      String
+  detail     String
+  /// RECEIVED, APPROVED or REJECTED
+  status     String    @default("RECEIVED")
+  decidedAt  DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([customerId, createdAt])
+  @@index([status])
+  @@map("customer_corrections")
 }

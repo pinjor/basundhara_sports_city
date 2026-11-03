@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Query, UseGuards } from "@nestjs/common";
 import { Throttle } from "@nestjs/throttler";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { CurrentCustomer, CustomerAuthGuard, type RequestCustomer } from "../auth/customer-jwt.strategy";
@@ -8,13 +8,18 @@ import { Idempotency, replay, type IdempotencyHandle } from "../ticketing/idempo
 import { CustomersService } from "./customers.service";
 import { CustomerTicketsService } from "./customer-tickets.service";
 import { CustomerBookingsService } from "./customer-bookings.service";
+import { CustomerMembershipService } from "./customer-membership.service";
 import {
   ChangePasswordDto,
+  CorporateMembershipDto,
+  CustomerCorrectionDto,
   CustomerBookingDto,
   CustomerCancelOrderDto,
   CustomerPayDto,
   CustomerTicketOrderDto,
+  PurchaseMembershipDto,
   UpdateCustomerDto,
+  UpdateMembershipDto,
 } from "./dto/customer.dto";
 
 @ApiTags("Customer account")
@@ -22,7 +27,10 @@ import {
 @UseGuards(CustomerAuthGuard)
 @Controller("customer/me")
 export class CustomerAccountController {
-  constructor(private readonly customers: CustomersService) {}
+  constructor(
+    private readonly customers: CustomersService,
+    private readonly membershipService: CustomerMembershipService,
+  ) {}
 
   @Get()
   profile(@CurrentCustomer() customer: RequestCustomer) {
@@ -34,6 +42,24 @@ export class CustomerAccountController {
     return this.customers.update(customer.id, dto);
   }
 
+  /** Closes the account: details are wiped and every device is signed out. */
+  @Delete()
+  @HttpCode(204)
+  async remove(@CurrentCustomer() customer: RequestCustomer) {
+    await this.customers.deleteAccount(customer.id);
+  }
+
+  /** Ask the front desk to fix name, ID number or date of birth. */
+  @Post("corrections")
+  requestCorrection(@CurrentCustomer() customer: RequestCustomer, @Body() dto: CustomerCorrectionDto) {
+    return this.customers.requestCorrection(customer.id, dto);
+  }
+
+  @Get("corrections")
+  corrections(@CurrentCustomer() customer: RequestCustomer) {
+    return this.customers.corrections(customer.id);
+  }
+
   /** Signs out every other device and returns a fresh session for this one. */
   @Throttle(AUTH_THROTTLE)
   @Post("password")
@@ -43,7 +69,26 @@ export class CustomerAccountController {
 
   @Get("membership")
   membership(@CurrentCustomer() customer: RequestCustomer) {
-    return this.customers.membership(customer.id);
+    return this.membershipService.view(customer.id);
+  }
+
+  /** Auto-renew and, on the family plan, who shares it. */
+  @Patch("membership")
+  updateMembership(@CurrentCustomer() customer: RequestCustomer, @Body() dto: UpdateMembershipDto) {
+    return this.membershipService.update(customer.id, dto);
+  }
+
+  /** Requires an `Idempotency-Key` header. 402 when the (sandbox) payment is declined. */
+  @Post("membership/purchase")
+  async purchaseMembership(@CurrentCustomer() customer: RequestCustomer, @Body() dto: PurchaseMembershipDto, @Idempotency() idem: IdempotencyHandle) {
+    return replay(idem, await this.membershipService.purchase(customer, dto, idem.key));
+  }
+
+  /** Employer-billed membership activated with a corporate code. */
+  @Throttle(AUTH_THROTTLE)
+  @Post("membership/corporate")
+  corporateMembership(@CurrentCustomer() customer: RequestCustomer, @Body() dto: CorporateMembershipDto) {
+    return this.membershipService.activateCorporate(customer, dto.code);
   }
 }
 
@@ -130,6 +175,14 @@ export class CustomerBookingsController {
   @Get("bookings/:id")
   get(@CurrentCustomer() customer: RequestCustomer, @Param("id") id: string) {
     return this.bookings.get(customer.id, id);
+  }
+
+  /** Requires an `Idempotency-Key` header. Confirms a held booking; 402 when the payment is declined. */
+  @ApiBearerAuth()
+  @UseGuards(CustomerAuthGuard)
+  @Post("bookings/:id/pay")
+  async pay(@CurrentCustomer() customer: RequestCustomer, @Param("id") id: string, @Body() dto: CustomerPayDto, @Idempotency() idem: IdempotencyHandle) {
+    return replay(idem, await this.bookings.pay(customer, id, dto, idem.key));
   }
 
   @ApiBearerAuth()

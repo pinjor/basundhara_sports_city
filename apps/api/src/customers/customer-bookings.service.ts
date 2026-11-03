@@ -1,19 +1,23 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
-import { BookingStatus, BookingType, ClosureStatus, FacilityStatus, Role } from "@bsc/shared";
+import { BookingStatus, BookingType, ClosureStatus, FacilityStatus, PaymentStatus, Role } from "@bsc/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import { BookingsService } from "../bookings/bookings.service";
 import { NotificationService } from "../common/notification.service";
-import { coversDay, dayWindow, findClash, minutes, overlaps } from "../bookings/booking-time";
+import { IdempotencyService } from "../common/idempotency.service";
+import { ReferenceService } from "../common/reference.service";
+import { coversDay, dayWindow, findClash, holdingSlot, minutes, overlaps } from "../bookings/booking-time";
 import { adjustedPrice, applicableRules } from "../booking-ops/pricing";
 import type { RequestCustomer } from "../auth/customer-jwt.strategy";
-import type { CustomerBookingDto } from "./dto/customer.dto";
+import { CustomerInboxService } from "./customer-inbox.service";
+import { assertSandboxPayments, DHAKA_OFFSET_MS, dhakaToday, PaymentDeclinedException, sandboxRef } from "./sandbox-payment";
+import type { CustomerBookingDto, CustomerPayDto } from "./dto/customer.dto";
 
 /** Staff record that customer-app actions are attributed to in the audit log. It can never sign in. */
 export const CUSTOMER_APP_USER_ID = "customer-app";
 
-/** Asia/Dhaka is UTC+6 all year; slot times are local. */
-const DHAKA_OFFSET_MS = 6 * 3_600_000;
 const BOOKING_WINDOW_DAYS = 90;
+/** An unpaid app booking keeps its slot this long. */
+export const BOOKING_HOLD_MS = 10 * 60 * 1000;
 const SLOT_TAKEN = "That slot is no longer available. Choose another time.";
 
 @Injectable()
@@ -22,6 +26,9 @@ export class CustomerBookingsService {
     private readonly prisma: PrismaService,
     private readonly bookings: BookingsService,
     private readonly notifications: NotificationService,
+    private readonly idempotency: IdempotencyService,
+    private readonly references: ReferenceService,
+    private readonly inbox: CustomerInboxService,
   ) {}
 
   async facilities() {
@@ -49,11 +56,12 @@ export class CustomerBookingsService {
       include: { surfaces: { where: { closureStatus: { not: ClosureStatus.OPEN } }, select: { id: true } } },
     });
     if (!facility) throw new NotFoundException("Facility not found");
+    await this.releaseExpiredHolds();
     const [slots, rules, taken] = await Promise.all([
       this.prisma.slot.findMany({ where: { facilityId, status: "ACTIVE" }, orderBy: { timeSlotStart: "asc" } }),
       this.prisma.pricingRule.findMany({ where: { status: "ACTIVE" } }),
       this.prisma.booking.findMany({
-        where: { facilityId, date: dayWindow(date), status: { in: [BookingStatus.PENDING, BookingStatus.CONFIRMED] } },
+        where: { facilityId, date: dayWindow(date), ...holdingSlot() },
         select: { timeSlotStart: true, timeSlotEnd: true },
       }),
     ]);
@@ -73,8 +81,12 @@ export class CustomerBookingsService {
       }));
   }
 
-  /** Creates a Pending request; the bookings team confirms it like any other booking. */
+  /**
+   * Holds the slot for 10 minutes as a Pending, unpaid booking. Paying confirms it; an unpaid hold
+   * lapses and the slot opens again.
+   */
   async request(customer: RequestCustomer, dto: CustomerBookingDto) {
+    await this.releaseExpiredHolds();
     const date = this.playDate(dto.date);
     const slot = await this.prisma.slot.findUnique({ where: { id: dto.slotId } });
     if (!slot || slot.status !== "ACTIVE" || !coversDay(slot.dayOfWeek, date)) throw new BadRequestException("That slot is not offered on this day");
@@ -107,16 +119,58 @@ export class CustomerBookingsService {
       if (error instanceof ConflictException) throw new ConflictException(SLOT_TAKEN);
       throw error;
     }
-    await this.notifications.notify({
-      title: "New booking request",
-      body: `${customer.name} asked for ${facility.name} on ${day}, ${slot.timeSlotStart}-${slot.timeSlotEnd}.`,
-      href: `/bookings?status=${encodeURIComponent(BookingStatus.PENDING)}`,
-      role: Role.BOOKINGS_OFFICER,
+    const held = await this.prisma.booking.update({
+      where: { id: booking.id },
+      data: { holdExpiresAt: new Date(Date.now() + BOOKING_HOLD_MS) },
+      include: { facility: { select: { id: true, name: true } } },
     });
-    return this.present(booking);
+    return this.present(held);
+  }
+
+  /** Requires an `Idempotency-Key`. Sandbox payment that confirms a held booking. */
+  pay(customer: RequestCustomer, id: string, dto: CustomerPayDto, key: string | undefined) {
+    assertSandboxPayments();
+    return this.idempotency.run(`booking-pay:${id}`, key, dto, async () => {
+      const booking = await this.own(customer.id, id);
+      if (booking.status === BookingStatus.CONFIRMED && booking.paymentStatus === PaymentStatus.PAID) return this.present(booking);
+      if (booking.status !== BookingStatus.PENDING) throw new ConflictException(`A ${booking.status.toLowerCase()} booking cannot be paid`);
+      if (booking.holdExpiresAt && booking.holdExpiresAt.getTime() <= Date.now()) {
+        throw new ConflictException("The hold on this slot has expired. Choose the slot again.");
+      }
+      if (dto.simulateFailure) throw new PaymentDeclinedException();
+      await this.ensureAppUser();
+      await this.bookings.setStatus(id, BookingStatus.CONFIRMED, CUSTOMER_APP_USER_ID);
+      await this.prisma.$transaction(async (tx) => {
+        await tx.bookingPayment.create({
+          data: {
+            reference: await this.references.next("BKP", tx),
+            status: "CAPTURED",
+            bookingId: id,
+            amountBdt: booking.amount,
+            method: dto.method,
+            gatewayRef: sandboxRef(),
+            createdById: CUSTOMER_APP_USER_ID,
+          },
+        });
+        await tx.booking.update({ where: { id }, data: { paymentStatus: PaymentStatus.PAID, holdExpiresAt: null } });
+        const day = booking.date.toISOString().slice(0, 10);
+        await this.notifications.notify(
+          {
+            title: "New paid booking",
+            body: `${customer.name} booked ${booking.facility.name} on ${day}, ${booking.timeSlotStart}-${booking.timeSlotEnd}.`,
+            href: `/bookings?status=${encodeURIComponent(BookingStatus.CONFIRMED)}`,
+            role: Role.BOOKINGS_OFFICER,
+          },
+          tx,
+        );
+        await this.inbox.notify(customer.id, "Booking confirmed", `${booking.facility.name} · ${day} · ${booking.timeSlotStart}`, tx);
+      });
+      return this.present(await this.own(customer.id, id));
+    });
   }
 
   async list(customerId: string) {
+    await this.releaseExpiredHolds();
     const rows = await this.prisma.booking.findMany({
       where: { customerId },
       include: { facility: { select: { id: true, name: true } } },
@@ -136,7 +190,33 @@ export class CustomerBookingsService {
     }
     if (this.started(booking.date, booking.timeSlotStart)) throw new ConflictException("This booking has already started");
     await this.ensureAppUser();
-    return this.present(await this.bookings.setStatus(id, BookingStatus.CANCELLED, CUSTOMER_APP_USER_ID));
+    const cancelled = await this.bookings.setStatus(id, BookingStatus.CANCELLED, CUSTOMER_APP_USER_ID);
+    if (booking.paymentStatus === PaymentStatus.PAID) {
+      await this.notifications.notify({
+        title: "Paid booking cancelled",
+        body: `${booking.customerName} cancelled ${booking.facility.name} on ${booking.date.toISOString().slice(0, 10)}. A refund decision is due.`,
+        href: `/bookings?status=${encodeURIComponent(BookingStatus.CANCELLED)}`,
+        role: Role.BOOKINGS_OFFICER,
+      });
+    }
+    return this.present(cancelled);
+  }
+
+  /** Unpaid app bookings whose hold ran out are cancelled so they stop showing as pending. */
+  private async releaseExpiredHolds() {
+    const expired = await this.prisma.booking.findMany({
+      where: { status: BookingStatus.PENDING, holdExpiresAt: { lt: new Date() } },
+      select: { id: true },
+    });
+    if (expired.length === 0) return;
+    await this.ensureAppUser();
+    const ids = expired.map((row) => row.id);
+    await this.prisma.$transaction([
+      this.prisma.booking.updateMany({ where: { id: { in: ids }, status: BookingStatus.PENDING }, data: { status: BookingStatus.CANCELLED } }),
+      this.prisma.auditLog.createMany({
+        data: ids.map((entityId) => ({ entityType: "Booking", entityId, action: "HOLD_EXPIRED", userId: CUSTOMER_APP_USER_ID })),
+      }),
+    ]);
   }
 
   private async own(customerId: string, id: string) {
@@ -155,6 +235,7 @@ export class CustomerBookingsService {
     amount: unknown;
     paymentStatus: string;
     qrConfirmationCode: string;
+    holdExpiresAt: Date | null;
     createdAt: Date;
   }) {
     return {
@@ -166,6 +247,8 @@ export class CustomerBookingsService {
       status: booking.status,
       amount: Number(booking.amount),
       paymentStatus: booking.paymentStatus,
+      /** Pay before this time or the slot is released. Null once paid. */
+      holdExpiresAt: booking.status === BookingStatus.PENDING ? booking.holdExpiresAt : null,
       /** Shown at the venue; only issued once the booking is confirmed. */
       qrCode: booking.status === BookingStatus.CONFIRMED ? booking.qrConfirmationCode : null,
       createdAt: booking.createdAt,
@@ -177,8 +260,7 @@ export class CustomerBookingsService {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(raw ?? "")) throw new BadRequestException("date must be YYYY-MM-DD");
     const date = new Date(`${raw}T00:00:00.000Z`);
     if (Number.isNaN(date.getTime())) throw new BadRequestException("date is not a real day");
-    const today = new Date(Date.now() + DHAKA_OFFSET_MS);
-    today.setUTCHours(0, 0, 0, 0);
+    const today = dhakaToday();
     const days = Math.round((date.getTime() - today.getTime()) / 86_400_000);
     if (days < 0) throw new BadRequestException("date is in the past");
     if (days > BOOKING_WINDOW_DAYS) throw new BadRequestException(`Bookings open ${BOOKING_WINDOW_DAYS} days ahead`);

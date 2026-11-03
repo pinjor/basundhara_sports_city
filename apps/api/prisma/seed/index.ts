@@ -1,6 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import { withSeeder } from "./app";
 import { seedCore } from "./core";
+import { seedCustomerApp } from "./customer-app";
 import { seedFinance } from "./finance";
 import { seedHrm } from "./hrm";
 import { seedPlatform } from "./platform";
@@ -22,6 +23,7 @@ async function main() {
       await seedVenue(seeder);
       await seedPlatform(seeder);
     });
+    await seedCustomerApp(prisma);
   } finally {
     await prisma.$disconnect();
   }

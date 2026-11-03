@@ -42,6 +42,11 @@ export function dayWindow(date: Date): { gte: Date; lt: Date } {
   return { gte, lt: new Date(gte.getTime() + DAY_MS) };
 }
 
+/** Bookings that keep their slot: live ones, except app bookings left unpaid past their hold. */
+export function holdingSlot(now = new Date()): Prisma.BookingWhereInput {
+  return { status: { in: LIVE }, OR: [{ holdExpiresAt: null }, { holdExpiresAt: { gt: now } }] };
+}
+
 export interface SlotRequest {
   facilityId: string;
   date: Date;
@@ -58,7 +63,7 @@ export async function findClash(db: Prisma.TransactionClient, request: SlotReque
       where: {
         facilityId: request.facilityId,
         date: dayWindow(request.date),
-        status: { in: LIVE },
+        ...holdingSlot(),
         ...(request.excludeId ? { id: { not: request.excludeId } } : {}),
       },
       select: { id: true, customerName: true, timeSlotStart: true, timeSlotEnd: true },

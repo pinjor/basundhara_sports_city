@@ -8,6 +8,7 @@ import {
 import { Prisma } from "@prisma/client";
 import { createHash, randomBytes, randomInt } from "crypto";
 import { AuditService } from "../audit/audit.service";
+import { IdempotencyService } from "../common/idempotency.service";
 import { PrismaService } from "../prisma/prisma.service";
 import {
   CancelTicketOrderDto,
@@ -52,6 +53,7 @@ export class TicketingService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly idempotency: IdempotencyService,
   ) {}
 
   sandboxEnabled(): boolean {
@@ -73,35 +75,8 @@ export class TicketingService {
     await tx.ticketOrder.updateMany({ where: { id: { in: ids } }, data: { status: "EXPIRED" } });
   }
 
-  private async withIdempotency<T>(
-    scope: string,
-    key: string | undefined,
-    payload: unknown,
-    run: () => Promise<T>,
-  ): Promise<{ body: T; replayed: boolean }> {
-    if (!key?.trim()) {
-      throw new BadRequestException("Idempotency-Key header is required");
-    }
-    const requestHash = createHash("sha256").update(JSON.stringify(payload)).digest("hex");
-    const existing = await this.prisma.idempotencyRecord.findUnique({ where: { key } });
-    if (existing) {
-      if (existing.scope !== scope || existing.requestHash !== requestHash) {
-        throw new ConflictException("IDEMPOTENCY_CONFLICT");
-      }
-      return { body: existing.body as T, replayed: true };
-    }
-    const body = await run();
-    try {
-      await this.prisma.idempotencyRecord.create({
-        data: { key, scope, requestHash, statusCode: 200, body: JSON.parse(JSON.stringify(body)) },
-      });
-    } catch (error) {
-      if (!isUnique(error)) throw error;
-      const raced = await this.prisma.idempotencyRecord.findUnique({ where: { key } });
-      if (raced && raced.requestHash === requestHash) return { body: raced.body as T, replayed: true };
-      throw new ConflictException("IDEMPOTENCY_CONFLICT");
-    }
-    return { body, replayed: false };
+  private withIdempotency<T>(scope: string, key: string | undefined, payload: unknown, run: () => Promise<T>) {
+    return this.idempotency.run(scope, key, payload, run);
   }
 
   async listEvents(scope: "public" | "staff") {

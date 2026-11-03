@@ -102,6 +102,9 @@ model Facility {
   currentBookingRef   String?
   nextBookingRef      String?
   lastInspectionDate  DateTime?
+  /// Shown in the customer app venue explorer.
+  imageUrl            String?
+  summary             String?
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
@@ -200,6 +203,8 @@ model Credential {
   eventPack   EventPack? @relation(fields: [eventPackId], references: [id])
   memberId    String?
   visitorId   String?
+  customerId  String?
+  customer    Customer?  @relation(fields: [customerId], references: [id])
   validFrom   DateTime   @default(now())
   validTo     DateTime?
   createdAt   DateTime   @default(now())
@@ -207,13 +212,18 @@ model Credential {
 
   @@index([holderRef])
   @@index([eventPackId])
+  @@index([customerId])
   @@map("credentials")
 }
 
 model ParkingReservation {
   id            String      @id @default(uuid())
-  eventPackId   String
-  eventPack     EventPack   @relation(fields: [eventPackId], references: [id])
+  eventPackId   String?
+  eventPack     EventPack?  @relation(fields: [eventPackId], references: [id])
+  customerId    String?
+  customer      Customer?   @relation(fields: [customerId], references: [id])
+  /// Printed on the customer's parking QR.
+  code          String      @unique @default(uuid())
   parkingZoneId String
   parkingZone   ParkingZone @relation(fields: [parkingZoneId], references: [id])
   plateNumber   String?
@@ -222,6 +232,7 @@ model ParkingReservation {
   updatedAt     DateTime    @updatedAt
 
   @@index([eventPackId])
+  @@index([customerId])
   @@map("parking_reservations")
 }
 
@@ -298,6 +309,8 @@ model Booking {
   /// Set when the booking was requested from the customer app.
   customerId         String?
   customer           Customer?  @relation(fields: [customerId], references: [id])
+  /// Unpaid app bookings keep the slot only until this time.
+  holdExpiresAt      DateTime?
   createdAt          DateTime   @default(now())
   updatedAt          DateTime   @updatedAt
   eventPack          EventPack?
@@ -328,8 +341,18 @@ model Member {
   lastCheckIn  DateTime?
   lockerId     String?
   billingCycle String    @default("Monthly")
+  /// Set when the membership was bought or linked in the customer app.
+  customerId   String?   @unique
+  customer     Customer? @relation(fields: [customerId], references: [id])
+  planCode     String?
+  autoRenew    Boolean   @default(false)
+  /// Names of family members sharing the plan.
+  holders      Json      @default("[]")
+  employer     String?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
+
+  payments MembershipPayment[]
 
   @@map("members")
 }
@@ -389,10 +412,15 @@ model Visitor {
   qrPassCode     String     @unique @default(uuid())
   eventPackId    String?
   eventPack      EventPack? @relation(fields: [eventPackId], references: [id])
+  /// Customer who invited this guest from the app.
+  customerId     String?
+  customer       Customer?  @relation(fields: [customerId], references: [id])
+  visitDate      DateTime?  @db.Date
   createdAt      DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
 
   @@index([eventPackId])
+  @@index([customerId])
   @@map("visitors")
 }
 
@@ -433,6 +461,10 @@ model Lounge {
   capacity         Int      @default(0)
   currentOccupancy Int      @default(0)
   status           String   @default("Open") // LoungeStatus
+  /// Customers can hold a table here from the app.
+  customerBookable Boolean  @default(false)
+  imageUrl         String?
+  summary          String?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
@@ -453,9 +485,15 @@ model ServiceRequest {
   updatedAt   DateTime   @updatedAt
   eventPackId String?
   eventPack   EventPack? @relation(fields: [eventPackId], references: [id])
+  /// App table hold: the customer, expected arrival ("Now", "20:00") and a note.
+  customerId  String?
+  customer    Customer?  @relation(fields: [customerId], references: [id])
+  arrival     String?
+  note        String?
 
   @@index([loungeId])
   @@index([eventPackId])
+  @@index([customerId])
   @@map("service_requests")
 }
 
@@ -473,10 +511,33 @@ model Outlet {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  orders Order[]
+  orders    Order[]
+  menuItems MenuItem[]
 
   @@index([zoneId])
   @@map("outlets")
+}
+
+/// Dishes customers can order from the app at an outlet.
+model MenuItem {
+  id          String   @id @default(uuid())
+  outletId    String
+  outlet      Outlet   @relation(fields: [outletId], references: [id], onDelete: Cascade)
+  name        String
+  /// Kitchen, Bar, Pastry or Snacks
+  category    String
+  priceBdt    Decimal  @db.Decimal(10, 2)
+  /// Where it is prepared and how long it takes, e.g. "Hot kitchen · ~12 min".
+  station     String   @default("")
+  prepMinutes Int      @default(12)
+  imageUrl    String?
+  available   Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([outletId])
+  @@map("menu_items")
 }
 
 model Order {
@@ -490,9 +551,15 @@ model Order {
   updatedAt   DateTime   @updatedAt
   eventPackId String?
   eventPack   EventPack? @relation(fields: [eventPackId], references: [id])
+  /// App orders: who placed it and the pickup reference.
+  customerId  String?
+  customer    Customer?  @relation(fields: [customerId], references: [id])
+  reference   String?    @unique
+  readyAt     DateTime?
 
   @@index([outletId])
   @@index([eventPackId])
+  @@index([customerId])
   @@map("orders")
 }
 
@@ -563,9 +630,15 @@ model Trip {
   completedAt  DateTime?
   eventPackId  String?
   eventPack    EventPack?   @relation(fields: [eventPackId], references: [id])
+  /// App ride request: who asked, party size and the code the driver checks.
+  customerId   String?
+  customer     Customer?    @relation(fields: [customerId], references: [id])
+  riders       Int          @default(1)
+  boardingCode String?
 
   @@index([vehicleId])
   @@index([eventPackId])
+  @@index([customerId])
   @@map("trips")
 }
 

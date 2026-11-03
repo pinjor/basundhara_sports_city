@@ -285,11 +285,31 @@ export interface LoginResponseDto extends TokenPairDto {
   user: AuthUserDto;
 }
 
+export interface CustomerConsentDto {
+  purpose: string;
+  granted: boolean;
+  at: string;
+  version?: string;
+  channel?: string;
+  language?: string;
+}
+
 export interface CustomerDto {
   id: string;
   name: string;
   email: string;
   mobile: string;
+  idType: string | null;
+  idLast4: string | null;
+  /** YYYY-MM-DD */
+  dob: string | null;
+  guardianName: string | null;
+  guardianMobile: string | null;
+  biometricConsent: boolean;
+  faceEnrolled: boolean;
+  consents: CustomerConsentDto[];
+  /** Opaque reference for the customer's gate credential. */
+  visitorRef: string;
   createdAt: string;
 }
 

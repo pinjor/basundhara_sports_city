@@ -25,7 +25,7 @@ import { useEquipment, useSurfaces } from "../api/surfaces";
 import { useOpsTasks } from "../api/operations";
 
 const HERO: Record<string, { kicker: string; lede: string }> = {
-  "/zones": { kicker: "Campus fabric", lede: "The live map of Bashundhara Sports City — complexes, buildings, routes and restricted ground." },
+  "/zones": { kicker: "Campus fabric", lede: "The live map of ABG Sports City — complexes, buildings, routes and restricted ground." },
   "/facilities": { kicker: "Playable estate", lede: "Stadiums, pitches, courts, pools and rooms with hours, capacity and availability." },
   "/surfaces": { kicker: "Grounds & kits", lede: "What is playable, what is recovering, and which equipment is on the field." },
   "/bookings": { kicker: "Reservation diary", lede: "Holds, confirmed events and settlement across every bookable space." },

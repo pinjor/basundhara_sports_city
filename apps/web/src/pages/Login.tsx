@@ -83,7 +83,7 @@ export function Login() {
             <motion.div variants={RISE}><BrandLogo size="lg" align="start" className="mb-8 drop-shadow-lg lg:mb-10" /></motion.div>
             <motion.p variants={RISE} className="gold-foil mb-3 text-[11px] font-semibold uppercase tracking-[0.32em]">Command Centre</motion.p>
             <motion.h1 variants={RISE} className="font-display text-[2.75rem] font-extrabold leading-[0.9] tracking-wide drop-shadow-[0_8px_28px_rgba(0,0,0,0.55)] sm:text-6xl lg:text-7xl xl:text-[5.25rem]">
-              <span className="gold-foil">BASHUNDHARA</span>
+              <span className="gold-foil">ABG</span>
               <span className="gold-foil mt-1 block">SPORTS CITY</span>
             </motion.h1>
             <motion.p variants={RISE} className="gold-foil mt-5 max-w-xl font-display text-lg font-semibold tracking-wide sm:text-2xl">
@@ -111,7 +111,19 @@ export function Login() {
               <p className="mt-2 text-sm leading-relaxed text-text-dim">
                 Sign in to operate the live complex — or click a demo role below.
               </p>
-              <Link to="/tickets" className="mt-3 inline-block text-sm text-[var(--brand-gold)]">Buy match tickets</Link>
+              <Link
+                to="/tickets"
+                className="ticket-cta group mt-5 flex min-h-14 w-full items-center gap-3 rounded-xl px-3 py-3 text-left"
+              >
+                <span className="gold-btn flex h-11 w-11 shrink-0 items-center justify-center rounded-lg" aria-hidden>
+                  <TicketStubIcon />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block font-display text-sm font-bold tracking-[0.16em] text-text">BUY MATCH TICKETS</span>
+                  <span className="mt-0.5 block text-xs text-text-dim">Public box office · no staff login</span>
+                </span>
+                <span className="gold-foil text-lg transition-transform group-hover:translate-x-0.5" aria-hidden>→</span>
+              </Link>
             </div>
 
             <form onSubmit={onSubmit} className="space-y-4">
@@ -166,14 +178,14 @@ export function Login() {
                   Password <span className="text-gold-soft">{DEMO_PASSWORD}</span>
                 </p>
               </div>
-              <motion.div className="grid grid-cols-2 gap-1.5" initial="hidden" animate="show" variants={{ show: { transition: { staggerChildren: 0.035, delayChildren: 0.6 } } }}>
+              <motion.div className="grid grid-cols-2 gap-1.5">
                 {DEMO_ACCOUNTS.map((account) => {
                   const active = email === account.email;
                   const label = ROLE_LABELS[account.role];
                   return (
                     <motion.button
                       key={account.email}
-                      variants={RISE}
+                      initial={{ opacity: 1, y: 0 }}
                       whileHover={{ y: -2 }}
                       whileTap={{ scale: 0.96 }}
                       type="button"
@@ -193,6 +205,15 @@ export function Login() {
         </aside>
       </div>
     </div>
+  );
+}
+
+function TicketStubIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v2a2.2 2.2 0 0 0 0 4v2a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-2a2.2 2.2 0 0 0 0-4z" />
+      <path d="M10 8v8" strokeDasharray="1.6 2.4" />
+    </svg>
   );
 }
 

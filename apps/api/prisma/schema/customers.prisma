@@ -147,3 +147,22 @@ model CustomerCorrection {
   @@index([status])
   @@map("customer_corrections")
 }
+
+/// Kerbside pickup and drop-off points for buggy rides, placed on the campus map (x, y from 0 to 1).
+model ShuttleStop {
+  id        String   @id @default(uuid())
+  code      String   @unique
+  name      String
+  /// Short zone label shown under the name, e.g. Entry, Pool, Food.
+  zone      String
+  x         Float
+  y         Float
+  /// Icon key understood by the app (gate, stadium, pitch, pool, food, hotel, lounge, parking, plaza).
+  icon      String   @default("plaza")
+  sortOrder Int      @default(0)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("shuttle_stops")
+}

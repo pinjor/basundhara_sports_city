@@ -18,10 +18,11 @@ export function PublicShell({ children }: { children: ReactNode }) {
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-3 px-4 py-3">
           <Link to="/tickets" className="mr-auto flex items-center gap-3">
             <BrandLogo size="sm" align="start" />
-            <span className="hidden font-display text-lg uppercase tracking-wide text-[var(--brand-gold)] sm:block">Bashundhara Sports City</span>
+            <span className="hidden font-display text-lg uppercase tracking-wide text-[var(--brand-gold)] sm:block">ABG Sports City</span>
           </Link>
           <nav className="flex flex-wrap items-center gap-1" aria-label="Tickets">
             <NavLink to="/tickets" end className={link}>{t("nav.home")}</NavLink>
+            <NavLink to="/tickets/book" className={link}>{t("nav.book")}</NavLink>
             <NavLink to="/tickets/events" className={link}>{t("nav.events")}</NavLink>
             <NavLink to="/tickets/my" className={link}>{t("nav.my")}</NavLink>
             <NavLink to="/tickets/help" className={link}>{t("nav.help")}</NavLink>

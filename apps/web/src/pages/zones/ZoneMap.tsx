@@ -44,13 +44,13 @@ export function ZoneMap({ zones, onSelect }: { zones: ZoneDto[]; onSelect: (zone
     <div className="panel overflow-hidden">
       <div className="flex items-center justify-between border-b border-gold/15 px-4 py-3">
         <h3 className="font-display text-base font-semibold tracking-wide text-gold">Complex map</h3>
-        <p className="text-[11px] uppercase tracking-[0.16em] text-text-dimmer">Bashundhara Sports City · live zones</p>
+        <p className="text-[11px] uppercase tracking-[0.16em] text-text-dimmer">ABG Sports City · live zones</p>
       </div>
 
       <div className="relative aspect-[16/9] w-full overflow-hidden bg-[#1a3a28]">
         <img
           src="/bsc-complex-map.png"
-          alt="Illustrated aerial map of Bashundhara Sports City"
+          alt="Illustrated aerial map of ABG Sports City"
           className="absolute inset-0 h-full w-full object-cover object-center"
         />
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-black/10" />

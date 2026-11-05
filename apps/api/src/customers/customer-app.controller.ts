@@ -16,6 +16,8 @@ import {
   CustomerBookingDto,
   CustomerCancelOrderDto,
   CustomerPayDto,
+  GuestBookingDto,
+  GuestPayDto,
   CustomerTicketOrderDto,
   PurchaseMembershipDto,
   UpdateCustomerDto,
@@ -190,5 +192,29 @@ export class CustomerBookingsController {
   @Post("bookings/:id/cancel")
   cancel(@CurrentCustomer() customer: RequestCustomer, @Param("id") id: string) {
     return this.bookings.cancel(customer.id, id);
+  }
+}
+
+/** Public box office session booking. Same slots as the app; buyer proves the hold with their mobile. */
+@ApiTags("Public session bookings")
+@Controller("customer/public-bookings")
+export class PublicBookingsController {
+  constructor(private readonly bookings: CustomerBookingsService) {}
+
+  @Throttle(AUTH_THROTTLE)
+  @Post()
+  hold(@Body() dto: GuestBookingDto) {
+    return this.bookings.guestHold(dto);
+  }
+
+  @Get(":id")
+  get(@Param("id") id: string, @Query("mobile") mobile?: string) {
+    return this.bookings.guestGet(id, mobile ?? "");
+  }
+
+  @Throttle(AUTH_THROTTLE)
+  @Post(":id/pay")
+  async pay(@Param("id") id: string, @Body() dto: GuestPayDto, @Idempotency() idem: IdempotencyHandle) {
+    return replay(idem, await this.bookings.guestPay(id, dto, idem.key));
   }
 }

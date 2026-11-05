@@ -170,6 +170,12 @@ export class CustomerCatalogService {
     }));
   }
 
+  /** Buggy pickup and drop-off points on the campus map. */
+  async stops() {
+    const rows = await this.prisma.shuttleStop.findMany({ where: { active: true }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }] });
+    return rows.map((stop) => ({ id: stop.code, name: stop.name, zone: stop.zone, x: stop.x, y: stop.y, icon: stop.icon }));
+  }
+
   async fleet() {
     const vehicles = await this.prisma.fleetVehicle.findMany({
       where: { type: { in: [FleetVehicleType.BUGGY, FleetVehicleType.SHUTTLE] } },

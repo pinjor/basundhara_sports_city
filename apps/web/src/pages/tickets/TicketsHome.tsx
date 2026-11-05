@@ -14,6 +14,7 @@ export function TicketsHome() {
   return (
     <PublicShell>
       <PageHero kicker={t("hero.kicker")} title={t("hero.title")} subtitle={t("hero.sub")} note={t("hero.photo")} />
+      <Link to="/tickets/book" className="gold-btn mt-6 inline-flex min-h-11 items-center rounded-md px-4 py-2 text-sm">{t("session.cta")}</Link>
       <section className="mt-8">
         <div className="mb-4 flex items-end justify-between">
           <h2 className="font-display text-2xl uppercase text-[var(--brand-gold)]">{t("events.upcoming")}</h2>
@@ -74,20 +75,25 @@ export function EventsListPage() {
         {events.isLoading && <LoadingSkeleton />}
         {events.isError && <ErrorState message={apiErrorMessage(events.error, t("common.error"))} onRetry={() => void events.refetch()} />}
         {events.data && rows.length === 0 && <p className="text-sm text-text-dim">{t("events.empty")}</p>}
-        {rows.map((event) => (
+        {rows.map((event) => {
+          const onSale = event.salesStatus === "ON_SALE" && new Date(event.startsAt).getTime() > Date.now();
+          return (
           <article key={event.id} className="panel flex flex-wrap items-center justify-between gap-4 p-4">
             <div>
               <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--brand-gold)]">{event.sport}</p>
               <h2 className="font-display text-2xl uppercase">{event.title}</h2>
               <p className="text-sm text-text-dim">{formatWhen(event.startsAt, lang)} · {event.venueName}</p>
               <p className="mt-1 text-sm">
-                {event.salesStatus === "SOLD_OUT" ? t("events.soldout") : event.salesStatus === "CLOSED" ? t("events.closed") : `${event.remaining} ${t("events.left")}`}
+                {event.salesStatus === "SOLD_OUT" ? t("events.soldout") : event.salesStatus === "CLOSED" || !onSale ? t("events.closed") : `${event.remaining} ${t("events.left")}`}
                 {event.fromPriceBdt != null ? ` · ${t("events.from")} ${formatBdt(event.fromPriceBdt, lang)}` : ""}
               </p>
             </div>
-            <Link to={`/tickets/events/${event.id}`} className="gold-btn inline-flex min-h-11 items-center rounded-md px-4">{t("events.book")}</Link>
+            {onSale
+              ? <Link to={`/tickets/events/${event.id}`} className="gold-btn inline-flex min-h-11 items-center rounded-md px-4">{t("events.book")}</Link>
+              : <p className="text-sm text-text-dim">{event.salesStatus === "SOLD_OUT" ? t("events.soldout") : t("events.closed")}</p>}
           </article>
-        ))}
+          );
+        })}
       </div>
     </PublicShell>
   );

@@ -52,7 +52,7 @@ class HttpErrorFilter implements ExceptionFilter {
 
 function setupDocs(app: NestExpressApplication) {
   const config = new DocumentBuilder()
-    .setTitle("Bashundhara Sports City API")
+    .setTitle("ABG Sports City API")
     .setDescription(
       [
         "Staff dashboards sign in at /auth/login; the customer app signs in at /customer/auth/login.",

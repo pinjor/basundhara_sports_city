@@ -1,6 +1,6 @@
 import { BadRequestException, ConflictException, Injectable, UnauthorizedException } from "@nestjs/common";
 import * as bcrypt from "bcryptjs";
-import type { Customer, Prisma } from "@prisma/client";
+import { Prisma, type Customer } from "@prisma/client";
 import type { CustomerAuthResponseDto, CustomerDto, TokenPairDto } from "@bsc/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import { TokenService, type Subject } from "../auth/token.service";
@@ -32,6 +32,35 @@ export class CustomersService {
       },
     });
     return this.session(customer, userAgent);
+  }
+
+  /** One-tap visitor: a unique Guest account, no password to remember. */
+  async signInGuest(userAgent?: string): Promise<CustomerAuthResponseDto> {
+    const at = new Date().toISOString();
+    const consents = [
+      { purpose: "Terms of use", granted: true, at, version: "v1.1", channel: "Guest", language: "en" },
+      { purpose: "Privacy notice", granted: true, at, version: "v1.1", channel: "Guest", language: "en" },
+    ];
+    for (let attempt = 0; attempt < 8; attempt++) {
+      const tag = randomBytes(4).toString("hex");
+      const mobile = `013${randomInt(10_000_000, 100_000_000)}`;
+      try {
+        const customer = await this.prisma.customer.create({
+          data: {
+            name: "Guest",
+            email: `guest.${tag}@abg.example`,
+            mobile,
+            passwordHash: await bcrypt.hash(randomBytes(24).toString("hex"), 10),
+            consents,
+          },
+        });
+        return this.session(customer, userAgent);
+      } catch (error) {
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") continue;
+        throw error;
+      }
+    }
+    throw new ConflictException("Could not start a guest session. Try again.");
   }
 
   async login(login: string, password: string, userAgent?: string): Promise<CustomerAuthResponseDto> {

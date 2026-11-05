@@ -1,4 +1,4 @@
-// Bashundhara Sports City Digital Management Platform — data model.
+// ABG Sports City Digital Management Platform — data model.
 // Covers the 12 in-scope modules (Section 4 of the master build prompt).
 // Status/type fields are stored as String and validated at the API layer
 // against the shared enums in @bsc/shared, rather than duplicated here as

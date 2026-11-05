@@ -212,6 +212,41 @@ export class CustomerBookingDto {
   note?: string;
 }
 
+/** Public box office: same slot hold as the app, without a customer account. */
+export class GuestBookingDto {
+  @IsString()
+  slotId!: string;
+
+  @IsDateString()
+  date!: string;
+
+  @IsString()
+  @MinLength(2)
+  @MaxLength(80)
+  buyerName!: string;
+
+  @Matches(BD_MOBILE, { message: BD_MOBILE_MESSAGE })
+  buyerMobile!: string;
+
+  @IsEmail()
+  buyerEmail!: string;
+
+  @Equals(true, { message: "termsAccepted must be true" })
+  termsAccepted!: boolean;
+}
+
+export class GuestPayDto {
+  @Matches(BD_MOBILE, { message: BD_MOBILE_MESSAGE })
+  buyerMobile!: string;
+
+  @IsIn(PAY_METHODS)
+  method!: string;
+
+  @IsOptional()
+  @IsBoolean()
+  simulateFailure?: boolean;
+}
+
 export class PurchaseMembershipDto {
   @IsString()
   @MaxLength(40)

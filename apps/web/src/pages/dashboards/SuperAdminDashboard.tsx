@@ -97,9 +97,9 @@ export function SuperAdminDashboard() {
       <header className="hero" style={{ backgroundImage: "linear-gradient(90deg, rgba(0,0,0,.9) 0%, rgba(0,0,0,.55) 36%, rgba(0,0,0,0) 66%), url(/dash/chair-hero.jpg)" }}>
         <p className="hello">{greeting()}, {user?.name?.split(" ")[0] ?? "Admin"}</p>
         <h2 className="gold">The Whole Sports City, One View</h2>
-        <p className="sub">Every venue, desk and gate across Bashundhara Sports City</p>
+        <p className="sub">Every venue, desk and gate across ABG Sports City</p>
         <div className="hero-brand">
-          <b>Bashundhara Sports City</b>
+          <b>ABG Sports City</b>
           <small>People Build Champions</small>
         </div>
       </header>
@@ -187,7 +187,7 @@ export function SuperAdminDashboard() {
       </div>
 
       <footer className="foot">
-        <span>© {new Date().getFullYear()} Bashundhara Sports City. All rights reserved.</span>
+        <span>© {new Date().getFullYear()} ABG Sports City. All rights reserved.</span>
         <b>Sports Empowers People</b>
       </footer>
     </div>

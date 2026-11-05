@@ -93,7 +93,7 @@ export function ChairmanDashboard() {
         </Link>
         <div className="ch-title">
           <h1>The Chairman Dashboard</h1>
-          <p className="ch-sub">Bashundhara Sports City</p>
+          <p className="ch-sub">ABG Sports City</p>
           <p className="ch-tag">People <i /> Sports <i /> Excellence <i /> A Brighter Bangladesh</p>
         </div>
         <div className="ch-strip" aria-hidden style={{ backgroundImage: "url(/dash/chair-strip.jpg)" }} />
@@ -178,7 +178,7 @@ function ChairBody({ data }: { data: ChairmanDash }) {
             <p className="ch-live-h">
               <i className="ch-dot" />
               <span>
-                Bashundhara Sports City
+                ABG Sports City
                 <small>{venue ? `${venue.type} · ${venue.available} free · ${venue.inUse} busy${venue.maintenance ? ` · ${venue.maintenance} in maintenance` : ""}` : `${count(campus.onSite)} on site now`}</small>
               </span>
             </p>

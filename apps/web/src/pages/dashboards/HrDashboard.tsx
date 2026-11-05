@@ -35,7 +35,7 @@ export function HrDashboard() {
         <h2 className="gold">Let’s Build Champions Together</h2>
         <p className="sub">Our People Power a Stronger Tomorrow</p>
         <div className="hero-brand">
-          <b>Bashundhara Sports City</b>
+          <b>ABG Sports City</b>
           <small>People Build Champions</small>
         </div>
       </header>
@@ -134,7 +134,7 @@ export function HrDashboard() {
       </div>
 
       <footer className="foot">
-        <span>© {year} Bashundhara Sports City. All rights reserved.</span>
+        <span>© {year} ABG Sports City. All rights reserved.</span>
         <b>Sports Empowers People</b>
       </footer>
 

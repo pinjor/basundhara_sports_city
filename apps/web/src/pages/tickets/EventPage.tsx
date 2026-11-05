@@ -77,7 +77,9 @@ export function EventPage() {
     }
   }
 
-  const closed = event.data && (event.data.salesStatus !== "ON_SALE" || new Date(event.data.startsAt).getTime() <= Date.now());
+  const past = event.data ? new Date(event.data.startsAt).getTime() <= Date.now() : false;
+  const closed = Boolean(event.data && (event.data.salesStatus !== "ON_SALE" || past));
+  const closedCopy = event.data?.salesStatus === "SOLD_OUT" ? t("events.soldout") : t("events.closed");
 
   return (
     <PublicShell>
@@ -108,7 +110,7 @@ export function EventPage() {
         </>
       )}
 
-      {closed && <p className="mt-6 rounded-md border border-[var(--status-warning)] px-3 py-2 text-sm">{event.data?.salesStatus === "CLOSED" ? t("events.closed") : t("events.soldout")}</p>}
+      {closed && <p className="mt-6 rounded-md border border-[var(--status-warning)] px-3 py-2 text-sm">{closedCopy}</p>}
 
       {!closed && step === "seats" && (
         <section className="mt-8">

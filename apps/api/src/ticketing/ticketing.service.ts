@@ -83,7 +83,10 @@ export class TicketingService {
     await this.releaseExpired();
     const now = new Date();
     const events = await this.prisma.matchEvent.findMany({
-      where: scope === "public" ? { startsAt: { gt: new Date(now.getTime() - 6 * 60 * 60 * 1000) } } : undefined,
+      where:
+        scope === "public"
+          ? { startsAt: { gt: new Date(now.getTime() - 6 * 60 * 60 * 1000) }, salesStatus: { in: ["ON_SALE"] } }
+          : undefined,
       include: { sections: { orderBy: { sortOrder: "asc" } }, categories: true, orders: { where: { status: { in: OCCUPYING } }, include: { items: true } } },
       orderBy: { startsAt: "asc" },
     });
@@ -146,7 +149,7 @@ export class TicketingService {
       remaining: Math.max(0, capacity - sold),
       fromPriceBdt: fromPrice,
       sections,
-      imageNote: "Placeholder imagery. Licensed Bashundhara Sports City photography is not yet available (OD-08).",
+      imageNote: "Placeholder imagery. Licensed ABG Sports City photography is not yet available (OD-08).",
     };
   }
 

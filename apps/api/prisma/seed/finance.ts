@@ -90,7 +90,7 @@ export async function seedFinance(seeder: Seeder): Promise<void> {
   const vat = await prisma.taxRate.findFirstOrThrow({ where: { name: "VAT 15%" } });
 
   if (await seeder.empty("fund")) {
-    await seeder.record("fund", finance, { name: "Capital works reserve", source: "Bashundhara Group", period: "FY2026", amountBdt: 120 * CRORE });
+    await seeder.record("fund", finance, { name: "Capital works reserve", source: "ABG Group", period: "FY2026", amountBdt: 120 * CRORE });
     await seeder.record("fund", finance, { name: "Youth development fund", source: "National Sports Council grant", period: "FY2026", amountBdt: 4.5 * CRORE });
     await seeder.record("fund", finance, { name: "Event contingency", source: "Operating surplus", period: "2026-Q4", amountBdt: 1.2 * CRORE }, ["FROZEN"]);
   }

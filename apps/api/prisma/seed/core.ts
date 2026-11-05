@@ -210,7 +210,7 @@ export async function seedCore(prisma: PrismaClient) {
     { facility: "Padel Court 2", customerName: "Rezaul Karim", memberIdx: 0, type: "Member", daysFromNow: 0, start: "18:00", end: "19:00", status: "Confirmed", amount: 1500 },
     { facility: "Squash Court A", customerName: "Anisur Rahman", memberIdx: 2, type: "Member", daysFromNow: 0, start: "19:00", end: "20:00", status: "Pending", amount: 1200 },
     { facility: "Badminton Hall", customerName: "Dhaka Corporate League", memberIdx: null, type: "Corporate", daysFromNow: 1, start: "17:00", end: "19:00", status: "Confirmed", amount: 8000 },
-    { facility: "Hockey Turf", customerName: "Bashundhara Youth Academy", memberIdx: null, type: "Academy", daysFromNow: 2, start: "08:00", end: "10:00", status: "Pending", amount: 6000 },
+    { facility: "Hockey Turf", customerName: "ABG Youth Academy", memberIdx: null, type: "Academy", daysFromNow: 2, start: "08:00", end: "10:00", status: "Pending", amount: 6000 },
     { facility: "Tennis Court 1", customerName: "Farah Diba", memberIdx: 1, type: "Member", daysFromNow: -1, start: "07:00", end: "08:00", status: "Completed", amount: 1000 },
     { facility: "Indoor Pool Hall", customerName: "Nabila Yasmin", memberIdx: 5, type: "Member", daysFromNow: 0, start: "06:30", end: "07:30", status: "Confirmed", amount: 800 },
     { facility: "Elite Performance Gym", customerName: "Maliha Chowdhury", memberIdx: 7, type: "Member", daysFromNow: 0, start: "07:00", end: "08:00", status: "Confirmed", amount: 600 },
@@ -683,9 +683,9 @@ export async function seedCore(prisma: PrismaClient) {
     };
     const catalogues = [
       {
-        title: "Bashundhara Kings vs Abahani",
+        title: "ABG Kings vs Abahani",
         sport: "Football",
-        venueName: "Bashundhara Sports City Stadium",
+        venueName: "ABG Sports City Stadium",
         venueNote: "International-standard pitch. Gates open 90 minutes before kickoff.",
         startsAt: at(12, 18),
         doorsAt: at(12, 16),

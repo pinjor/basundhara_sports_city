@@ -10,7 +10,7 @@ import { adjustedPrice, applicableRules } from "../booking-ops/pricing";
 import type { RequestCustomer } from "../auth/customer-jwt.strategy";
 import { CustomerInboxService } from "./customer-inbox.service";
 import { assertSandboxPayments, DHAKA_OFFSET_MS, dhakaToday, PaymentDeclinedException, sandboxRef } from "./sandbox-payment";
-import type { CustomerBookingDto, CustomerPayDto } from "./dto/customer.dto";
+import type { CustomerBookingDto, CustomerPayDto, GuestBookingDto, GuestPayDto } from "./dto/customer.dto";
 
 /** Staff record that customer-app actions are attributed to in the audit log. It can never sign in. */
 export const CUSTOMER_APP_USER_ID = "customer-app";
@@ -85,88 +85,36 @@ export class CustomerBookingsService {
    * Holds the slot for 10 minutes as a Pending, unpaid booking. Paying confirms it; an unpaid hold
    * lapses and the slot opens again.
    */
-  async request(customer: RequestCustomer, dto: CustomerBookingDto) {
-    await this.releaseExpiredHolds();
-    const date = this.playDate(dto.date);
-    const slot = await this.prisma.slot.findUnique({ where: { id: dto.slotId } });
-    if (!slot || slot.status !== "ACTIVE" || !coversDay(slot.dayOfWeek, date)) throw new BadRequestException("That slot is not offered on this day");
-    if (this.started(date, slot.timeSlotStart)) throw new BadRequestException("That slot has already started");
-    const facility = await this.prisma.facility.findUniqueOrThrow({ where: { id: slot.facilityId } });
-    if (facility.status === FacilityStatus.MAINTENANCE) throw new ConflictException("This facility is closed for maintenance");
-    const day = date.toISOString().slice(0, 10);
-    if (await findClash(this.prisma, { facilityId: slot.facilityId, date, start: slot.timeSlotStart, end: slot.timeSlotEnd })) {
-      throw new ConflictException(SLOT_TAKEN);
-    }
-    const rules = await this.prisma.pricingRule.findMany({ where: { status: "ACTIVE" } });
-    await this.ensureAppUser();
-    let booking: Awaited<ReturnType<BookingsService["create"]>>;
-    try {
-      booking = await this.bookings.create(
-        {
-          facilityId: slot.facilityId,
-          customerName: customer.name,
-          type: BookingType.PUBLIC,
-          date: day,
-          timeSlotStart: slot.timeSlotStart,
-          timeSlotEnd: slot.timeSlotEnd,
-          amount: adjustedPrice(Number(slot.priceBdt), applicableRules(rules, slot.facilityId, date, slot.timeSlotStart)),
-          detail: [`Customer app · ${customer.mobile}`, dto.note?.trim()].filter(Boolean).join(" · "),
-        },
-        CUSTOMER_APP_USER_ID,
-        customer.id,
-      );
-    } catch (error) {
-      if (error instanceof ConflictException) throw new ConflictException(SLOT_TAKEN);
-      throw error;
-    }
-    const held = await this.prisma.booking.update({
-      where: { id: booking.id },
-      data: { holdExpiresAt: new Date(Date.now() + BOOKING_HOLD_MS) },
-      include: { facility: { select: { id: true, name: true } } },
+  request(customer: RequestCustomer, dto: CustomerBookingDto) {
+    return this.holdSlot({
+      slotId: dto.slotId,
+      date: dto.date,
+      customerName: customer.name,
+      customerId: customer.id,
+      detail: [`Customer app · ${customer.mobile}`, dto.note?.trim()].filter(Boolean).join(" · "),
     });
-    return this.present(held);
+  }
+
+  guestHold(dto: GuestBookingDto) {
+    return this.holdSlot({
+      slotId: dto.slotId,
+      date: dto.date,
+      customerName: dto.buyerName.trim(),
+      detail: `${this.guestTag(dto.buyerMobile)}${dto.buyerEmail}`,
+    });
+  }
+
+  async guestGet(id: string, mobile: string) {
+    return this.present(await this.ownGuest(id, mobile));
+  }
+
+  guestPay(id: string, dto: GuestPayDto, key: string | undefined) {
+    return this.settlePay(id, dto, key, async () => this.ownGuest(id, dto.buyerMobile));
   }
 
   /** Requires an `Idempotency-Key`. Sandbox payment that confirms a held booking. */
   pay(customer: RequestCustomer, id: string, dto: CustomerPayDto, key: string | undefined) {
-    assertSandboxPayments();
-    return this.idempotency.run(`booking-pay:${id}`, key, dto, async () => {
-      const booking = await this.own(customer.id, id);
-      if (booking.status === BookingStatus.CONFIRMED && booking.paymentStatus === PaymentStatus.PAID) return this.present(booking);
-      if (booking.status !== BookingStatus.PENDING) throw new ConflictException(`A ${booking.status.toLowerCase()} booking cannot be paid`);
-      if (booking.holdExpiresAt && booking.holdExpiresAt.getTime() <= Date.now()) {
-        throw new ConflictException("The hold on this slot has expired. Choose the slot again.");
-      }
-      if (dto.simulateFailure) throw new PaymentDeclinedException();
-      await this.ensureAppUser();
-      await this.bookings.setStatus(id, BookingStatus.CONFIRMED, CUSTOMER_APP_USER_ID);
-      await this.prisma.$transaction(async (tx) => {
-        await tx.bookingPayment.create({
-          data: {
-            reference: await this.references.next("BKP", tx),
-            status: "CAPTURED",
-            bookingId: id,
-            amountBdt: booking.amount,
-            method: dto.method,
-            gatewayRef: sandboxRef(),
-            createdById: CUSTOMER_APP_USER_ID,
-          },
-        });
-        await tx.booking.update({ where: { id }, data: { paymentStatus: PaymentStatus.PAID, holdExpiresAt: null } });
-        const day = booking.date.toISOString().slice(0, 10);
-        await this.notifications.notify(
-          {
-            title: "New paid booking",
-            body: `${customer.name} booked ${booking.facility.name} on ${day}, ${booking.timeSlotStart}-${booking.timeSlotEnd}.`,
-            href: `/bookings?status=${encodeURIComponent(BookingStatus.CONFIRMED)}`,
-            role: Role.BOOKINGS_OFFICER,
-          },
-          tx,
-        );
-        await this.inbox.notify(customer.id, "Booking confirmed", `${booking.facility.name} · ${day} · ${booking.timeSlotStart}`, tx);
-      });
-      return this.present(await this.own(customer.id, id));
-    });
+    return this.settlePay(id, dto, key, async () => this.own(customer.id, id), customer.id);
   }
 
   async list(customerId: string) {
@@ -217,6 +165,119 @@ export class CustomerBookingsService {
         data: ids.map((entityId) => ({ entityType: "Booking", entityId, action: "HOLD_EXPIRED", userId: CUSTOMER_APP_USER_ID })),
       }),
     ]);
+  }
+
+  private guestTag(mobile: string) {
+    return `guest:${mobile}|`;
+  }
+
+  private async holdSlot(input: { slotId: string; date: string; customerName: string; customerId?: string; detail: string }) {
+    await this.releaseExpiredHolds();
+    const date = this.playDate(input.date);
+    const slot = await this.prisma.slot.findUnique({ where: { id: input.slotId } });
+    if (!slot || slot.status !== "ACTIVE" || !coversDay(slot.dayOfWeek, date)) throw new BadRequestException("That slot is not offered on this day");
+    if (this.started(date, slot.timeSlotStart)) throw new BadRequestException("That slot has already started");
+    const facility = await this.prisma.facility.findUniqueOrThrow({ where: { id: slot.facilityId } });
+    if (facility.status === FacilityStatus.MAINTENANCE) throw new ConflictException("This facility is closed for maintenance");
+    const day = date.toISOString().slice(0, 10);
+    if (await findClash(this.prisma, { facilityId: slot.facilityId, date, start: slot.timeSlotStart, end: slot.timeSlotEnd })) {
+      throw new ConflictException(SLOT_TAKEN);
+    }
+    const rules = await this.prisma.pricingRule.findMany({ where: { status: "ACTIVE" } });
+    await this.ensureAppUser();
+    let booking: Awaited<ReturnType<BookingsService["create"]>>;
+    try {
+      booking = await this.bookings.create(
+        {
+          facilityId: slot.facilityId,
+          customerName: input.customerName,
+          type: BookingType.PUBLIC,
+          date: day,
+          timeSlotStart: slot.timeSlotStart,
+          timeSlotEnd: slot.timeSlotEnd,
+          amount: adjustedPrice(Number(slot.priceBdt), applicableRules(rules, slot.facilityId, date, slot.timeSlotStart)),
+          detail: input.detail,
+        },
+        CUSTOMER_APP_USER_ID,
+        input.customerId,
+      );
+    } catch (error) {
+      if (error instanceof ConflictException) throw new ConflictException(SLOT_TAKEN);
+      throw error;
+    }
+    const held = await this.prisma.booking.update({
+      where: { id: booking.id },
+      data: { holdExpiresAt: new Date(Date.now() + BOOKING_HOLD_MS) },
+      include: { facility: { select: { id: true, name: true } } },
+    });
+    return this.present(held);
+  }
+
+  private settlePay(
+    id: string,
+    dto: CustomerPayDto | GuestPayDto,
+    key: string | undefined,
+    load: () => Promise<{
+      id: string;
+      status: string;
+      paymentStatus: string;
+      holdExpiresAt: Date | null;
+      amount: unknown;
+      customerName: string;
+      timeSlotStart: string;
+      timeSlotEnd: string;
+      date: Date;
+      facility: { id: string; name: string };
+      customerId: string | null;
+    }>,
+    inboxCustomerId?: string,
+  ) {
+    assertSandboxPayments();
+    return this.idempotency.run(`booking-pay:${id}`, key, dto, async () => {
+      const booking = await load();
+      if (booking.status === BookingStatus.CONFIRMED && booking.paymentStatus === PaymentStatus.PAID) return this.present(booking as never);
+      if (booking.status !== BookingStatus.PENDING) throw new ConflictException(`A ${booking.status.toLowerCase()} booking cannot be paid`);
+      if (booking.holdExpiresAt && booking.holdExpiresAt.getTime() <= Date.now()) {
+        throw new ConflictException("The hold on this slot has expired. Choose the slot again.");
+      }
+      if (dto.simulateFailure) throw new PaymentDeclinedException();
+      await this.ensureAppUser();
+      await this.bookings.setStatus(id, BookingStatus.CONFIRMED, CUSTOMER_APP_USER_ID);
+      await this.prisma.$transaction(async (tx) => {
+        await tx.bookingPayment.create({
+          data: {
+            reference: await this.references.next("BKP", tx),
+            status: "CAPTURED",
+            bookingId: id,
+            amountBdt: Number(booking.amount),
+            method: dto.method,
+            gatewayRef: sandboxRef(),
+            createdById: CUSTOMER_APP_USER_ID,
+          },
+        });
+        await tx.booking.update({ where: { id }, data: { paymentStatus: PaymentStatus.PAID, holdExpiresAt: null } });
+        const day = booking.date.toISOString().slice(0, 10);
+        await this.notifications.notify(
+          {
+            title: "New paid booking",
+            body: `${booking.customerName} booked ${booking.facility.name} on ${day}, ${booking.timeSlotStart}-${booking.timeSlotEnd}.`,
+            href: `/bookings?status=${encodeURIComponent(BookingStatus.CONFIRMED)}`,
+            role: Role.BOOKINGS_OFFICER,
+          },
+          tx,
+        );
+        if (inboxCustomerId) {
+          await this.inbox.notify(inboxCustomerId, "Booking confirmed", `${booking.facility.name} · ${day} · ${booking.timeSlotStart}`, tx);
+        }
+      });
+      return this.present((await load()) as never);
+    });
+  }
+
+  private async ownGuest(id: string, mobile: string) {
+    const booking = await this.prisma.booking.findUnique({ where: { id }, include: { facility: { select: { id: true, name: true } } } });
+    if (!booking?.detail?.startsWith(this.guestTag(mobile))) throw new NotFoundException("Booking not found");
+    return booking;
   }
 
   private async own(customerId: string, id: string) {

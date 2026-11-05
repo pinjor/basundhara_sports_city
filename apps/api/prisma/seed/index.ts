@@ -5,6 +5,7 @@ import { seedCustomerApp } from "./customer-app";
 import { seedFinance } from "./finance";
 import { seedHrm } from "./hrm";
 import { seedPlatform } from "./platform";
+import { seedShowcase } from "./showcase";
 import { seedSupply } from "./supply";
 import { seedVenue } from "./venue";
 
@@ -22,6 +23,7 @@ async function main() {
       await seedHrm(seeder);
       await seedVenue(seeder);
       await seedPlatform(seeder);
+      await seedShowcase(seeder);
     });
     await seedCustomerApp(prisma);
   } finally {

@@ -177,6 +177,20 @@ body {
   filter: brightness(0.95);
 }
 
+.ticket-cta {
+  border: 1px solid color-mix(in srgb, var(--brand-gold) 40%, transparent);
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--brand-gold) 14%, transparent), transparent 42%),
+    var(--surface-secondary);
+  box-shadow: 0 10px 28px color-mix(in srgb, var(--brand-gold) 16%, transparent);
+  transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+.ticket-cta:hover {
+  border-color: var(--brand-gold);
+  box-shadow: 0 14px 32px color-mix(in srgb, var(--brand-gold) 28%, transparent);
+  transform: translateY(-1px);
+}
+
 /* ---------- Legacy component classes (restyled to tokens) ---------- */
 
 .demo-chip {

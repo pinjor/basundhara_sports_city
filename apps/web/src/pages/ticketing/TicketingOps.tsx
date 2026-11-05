@@ -95,7 +95,7 @@ export function TicketingEventsPage() {
   const [form, setForm] = useState({
     title: "",
     sport: "Football",
-    venueName: "Bashundhara Sports City Stadium",
+    venueName: "ABG Sports City Stadium",
     startsAt: "",
     doorsAt: "",
     west: "800",

@@ -1,5 +1,5 @@
 /**
- * Design tokens — Bashundhara Sports City Digital Management Platform.
+ * Design tokens — ABG Sports City Digital Management Platform.
  * Title-bar palette: black chrome + #F0AE43 gold.
  */
 /** Semantic palette. CSS custom properties in apps/web/src/styles/tokens.css are authoritative at runtime. */

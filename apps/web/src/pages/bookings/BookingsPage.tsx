@@ -9,7 +9,6 @@ import { DataTable, type Column } from "../../components/ui/DataTable";
 import { StatusBadge } from "../../components/ui/StatusBadge";
 import { StatTile } from "../../components/ui/StatTile";
 import { useBookings } from "../../api/bookings";
-import { useFacilities } from "../../api/facilities";
 import { useAuthStore } from "../../store/auth";
 import { BookingFormModal } from "./BookingFormModal";
 import { BookingDetailModal } from "./BookingDetailModal";
@@ -39,7 +38,6 @@ export function BookingsPage() {
 
   const { data: bookingsRaw = [], isLoading } = useBookings({ status: status || undefined, search: search || undefined });
   const bookings = type ? bookingsRaw.filter((b) => b.type === type) : bookingsRaw;
-  const { data: facilities = [] } = useFacilities({});
   const role = useAuthStore((s) => s.user?.role);
   const canManage = role === Role.SUPER_ADMIN || role === Role.BOOKINGS_OFFICER;
 
@@ -94,7 +92,7 @@ export function BookingsPage() {
         <DataTable columns={columns} rows={bookings} keyFor={(b) => b.id} onRowClick={(b) => setSelectedBookingId(b.id)} />
       )}
 
-      <BookingFormModal open={createOpen} onClose={() => setCreateOpen(false)} facilities={facilities} />
+      <BookingFormModal open={createOpen} onClose={() => setCreateOpen(false)} />
       <BookingDetailModal bookingId={selectedBookingId} onClose={() => setSelectedBookingId(null)} />
     </div>
   );

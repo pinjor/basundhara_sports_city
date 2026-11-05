@@ -1,6 +1,6 @@
-# Bashundhara Sports City — Digital Management Platform
+# ABG Sports City — Digital Management Platform
 
-Production-grade operations platform for staff running the Bashundhara
+Production-grade operations platform for staff running the ABG
 Sports City complex day to day: venue managers, gate officers, hospitality
 teams, F&B outlets, parking marshals and fleet dispatchers. This is **not**
 the visitor-facing consumer app referenced in the brand pitch — it's the

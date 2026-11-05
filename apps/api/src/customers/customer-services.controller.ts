@@ -56,6 +56,12 @@ export class CustomerCatalogController {
     return this.catalog.parkingZones();
   }
 
+  /** Buggy stops with their map position (x, y from 0 to 1). */
+  @Get("stops")
+  stops() {
+    return this.catalog.stops();
+  }
+
   @Get("fleet")
   fleet() {
     return this.catalog.fleet();

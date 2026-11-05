@@ -25,6 +25,7 @@ import { TasksPage } from "./pages/operations/TasksPage";
 import { ApprovalsPage } from "./pages/operations/ApprovalsPage";
 import { NoAccess } from "./pages/NoAccess";
 import { TicketsHome, EventsListPage } from "./pages/tickets/TicketsHome";
+import { BookSessionPage } from "./pages/tickets/BookSessionPage";
 import { EventPage } from "./pages/tickets/EventPage";
 import { CheckoutPage } from "./pages/tickets/CheckoutPage";
 import { HelpPage, MyBookingsPage, OrderPage } from "./pages/tickets/OrderPages";
@@ -215,6 +216,7 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/tickets" element={<TicketsHome />} />
+      <Route path="/tickets/book" element={<BookSessionPage />} />
       <Route path="/tickets/events" element={<EventsListPage />} />
       <Route path="/tickets/events/:id" element={<EventPage />} />
       <Route path="/tickets/orders/:reference/checkout" element={<CheckoutPage />} />

@@ -2,7 +2,7 @@ import { Module } from "@nestjs/common";
 import { BookingsModule } from "../bookings/bookings.module";
 import { TicketingModule } from "../ticketing/ticketing.module";
 import { CustomerAuthController } from "./customer-auth.controller";
-import { CustomerAccountController, CustomerBookingsController, CustomerOrdersController } from "./customer-app.controller";
+import { CustomerAccountController, CustomerBookingsController, CustomerOrdersController, PublicBookingsController } from "./customer-app.controller";
 import { CustomerCatalogController, CustomerServicesController } from "./customer-services.controller";
 import { CustomersService } from "./customers.service";
 import { CustomerTicketsService } from "./customer-tickets.service";
@@ -31,6 +31,7 @@ import { CustomerServicesService } from "./customer-services.service";
     CustomerAccountController,
     CustomerOrdersController,
     CustomerBookingsController,
+    PublicBookingsController,
     CustomerCatalogController,
     CustomerServicesController,
   ],

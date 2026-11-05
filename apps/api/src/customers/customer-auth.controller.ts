@@ -18,6 +18,12 @@ export class CustomerAuthController {
     return this.customers.register(dto, userAgent);
   }
 
+  /** No body. Issues a Guest account and a session. */
+  @Post("guest")
+  signInGuest(@UserAgent() userAgent?: string) {
+    return this.customers.signInGuest(userAgent);
+  }
+
   /** `login` is the email address or the mobile number. */
   @Post("login")
   @HttpCode(200)

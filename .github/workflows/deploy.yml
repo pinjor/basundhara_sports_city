@@ -30,7 +30,7 @@ jobs:
 
             # Merge latest changes without deleting local files
             git checkout main
-            git pull origin main
+            git pull origin claude/eloquent-lovelace-fde7bn
 
             # Ensure compose file still exists
             if [ ! -f docker-compose.yml ]; then

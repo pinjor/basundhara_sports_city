@@ -1,0 +1,47 @@
+name: Deploy BSC
+
+on:
+  push:
+    branches:
+      - main
+      
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to Azure VM
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.STAGE_HOST }}
+          username: ${{ secrets.STAGE_USER }}
+          key: ${{ secrets.STAGE_KEY }}
+          script: |
+            set -e
+
+            APP_DIR=/var/www/bsc
+
+            cd "$APP_DIR"
+
+            # Update tracked files from GitHub
+            git fetch origin
+
+            # Merge latest changes without deleting local files
+            git checkout main
+            git pull origin main
+
+            # Ensure compose file still exists
+            if [ ! -f docker-compose.yml ]; then
+              echo "docker-compose.yml not found"
+              exit 1
+            fi
+
+            docker compose down --remove-orphans || true
+
+            docker compose build --no-cache
+
+            docker compose up -d
+
+            docker image prune -f || true

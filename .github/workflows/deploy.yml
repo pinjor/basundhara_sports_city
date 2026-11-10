@@ -29,7 +29,7 @@ jobs:
             git fetch origin
 
             # Merge latest changes without deleting local files
-            git checkout main
+            git checkout claude/eloquent-lovelace-fde7bn
             git pull origin claude/eloquent-lovelace-fde7bn
 
             # Ensure compose file still exists

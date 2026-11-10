@@ -3,7 +3,7 @@ name: Deploy BSC
 on:
   push:
     branches:
-      - main
+      - claude/eloquent-lovelace-fde7bn
       
   workflow_dispatch:
 

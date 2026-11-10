@@ -50,10 +50,10 @@ export function RevenueDashboard() {
       </div>
 
       <div className="kpis c4">
-        <Kpi variant="stripe" icon="coins" label="Total Revenue" value={bdt(kpis.revenue)} {...change(kpis.revenueDelta)} color="#f2b81d" to="/finance?feature=revenue-management" />
+        <Kpi variant="stripe" icon="coins" label="Total Revenue" value={bdtShort(kpis.revenue)} {...change(kpis.revenueDelta)} color="#f2b81d" to="/finance?feature=revenue-management" />
         <Kpi variant="stripe" icon="bars" label="Total Invoices" value={count(kpis.invoices)} {...change(kpis.invoicesDelta)} color="#f0444a" to="/finance?feature=invoice-management" />
-        <Kpi variant="stripe" icon="card" label="Received Amount" value={bdt(kpis.received)} {...change(kpis.receivedDelta)} color="#22c97a" to="/finance?feature=payment-tracking" />
-        <Kpi variant="stripe" icon="hourglass" label="Outstanding Amount" value={bdt(kpis.outstanding)} color="#3f97f4" to="/finance?feature=receivable-management" />
+        <Kpi variant="stripe" icon="card" label="Received Amount" value={bdtShort(kpis.received)} {...change(kpis.receivedDelta)} color="#22c97a" to="/finance?feature=payment-tracking" />
+        <Kpi variant="stripe" icon="hourglass" label="Outstanding Amount" value={bdtShort(kpis.outstanding)} color="#3f97f4" to="/finance?feature=receivable-management" />
       </div>
 
       <div className="row c-rev1">

@@ -59,7 +59,7 @@ function OpsTile({
       {items && items.length > 0 && (
         <ul className="mt-3 space-y-1 text-xs text-text-dim">
           {items.slice(0, 3).map((item) => (
-            <li key={item} className="truncate">
+            <li key={item} className="break-words">
               {item}
             </li>
           ))}

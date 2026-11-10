@@ -62,21 +62,37 @@ const LOUNGES: Record<string, { image: string; summary: string }> = {
   "Retail Sky Lounge": { image: "1560448204-e02f11c3d0e2", summary: "Sofas and a small play corner" },
 };
 
-/** Customer app catalogue: plans, employer codes, menus, venue photos and bookable lounges. Fills gaps only. */
-export async function seedCustomerApp(prisma: PrismaClient): Promise<void> {
-  if ((await prisma.membershipPlan.count()) === 0) await prisma.membershipPlan.createMany({ data: PLANS });
-  if ((await prisma.corporateAccount.count()) === 0) await prisma.corporateAccount.createMany({ data: CORPORATE });
+const STOPS = [
+  { code: "main-gate", name: "Main Gate North", zone: "Entry", x: 0.48, y: 0.22, icon: "gate", sortOrder: 1 },
+  { code: "stadium", name: "ABG Stadium", zone: "Stadium", x: 0.52, y: 0.32, icon: "stadium", sortOrder: 2 },
+  { code: "pool", name: "Aquatic Centre", zone: "Pool", x: 0.3, y: 0.45, icon: "pool", sortOrder: 3 },
+  { code: "plaza", name: "Central Plaza", zone: "Plaza", x: 0.42, y: 0.52, icon: "plaza", sortOrder: 4 },
+  { code: "retail", name: "Retail Boulevard", zone: "Food", x: 0.2, y: 0.65, icon: "food", sortOrder: 5 },
+];
 
-  if ((await prisma.menuItem.count()) === 0) {
-    const outlets = await prisma.outlet.findMany({ where: { name: { in: Object.keys(MENUS) } } });
-    for (const outlet of outlets) {
-      await prisma.menuItem.createMany({
-        data: MENUS[outlet.name]!.map((key, sortOrder) => {
-          const { image, ...dish } = DISH[key]!;
-          return { ...dish, outletId: outlet.id, imageUrl: photo(image, 900), sortOrder };
-        }),
-      });
+/** Customer app catalogue: plans, employer codes, menus, venue photos, shuttle stops and bookable lounges. Fills gaps only. */
+export async function seedCustomerApp(prisma: PrismaClient): Promise<void> {
+  for (const plan of PLANS) {
+    if (await prisma.membershipPlan.findUnique({ where: { code: plan.code } })) continue;
+    await prisma.membershipPlan.create({ data: plan });
+  }
+  for (const account of CORPORATE) {
+    if (await prisma.corporateAccount.findUnique({ where: { code: account.code } })) continue;
+    await prisma.corporateAccount.create({ data: account });
+  }
+
+  const outlets = await prisma.outlet.findMany({ where: { name: { in: Object.keys(MENUS) } } });
+  for (const outlet of outlets) {
+    for (const [sortOrder, key] of MENUS[outlet.name]!.entries()) {
+      const { image, ...dish } = DISH[key]!;
+      if (await prisma.menuItem.findFirst({ where: { outletId: outlet.id, name: dish.name } })) continue;
+      await prisma.menuItem.create({ data: { ...dish, outletId: outlet.id, imageUrl: photo(image, 900), sortOrder } });
     }
+  }
+
+  for (const stop of STOPS) {
+    if (await prisma.shuttleStop.findUnique({ where: { code: stop.code } })) continue;
+    await prisma.shuttleStop.create({ data: stop });
   }
 
   const bare = await prisma.facility.findMany({ where: { imageUrl: null } });

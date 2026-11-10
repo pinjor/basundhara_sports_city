@@ -247,7 +247,7 @@ export function Bell({ badge }: { badge: boolean }) {
       </button>
       <AnimatePresence>
       {open && (
-        <motion.div className="pop right pop-panel" variants={popVariants} initial="hidden" animate="show" exit="exit" style={{ transformOrigin: "top right" }}>
+        <motion.div className="pop right pop-panel note-pop" variants={popVariants} initial="hidden" animate="show" exit="exit" style={{ transformOrigin: "top right" }}>
           <div className="panel-top">
             <p className="panel-h">Notifications</p>
             {unread > 0 && (

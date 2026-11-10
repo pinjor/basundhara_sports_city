@@ -10,8 +10,8 @@ import { seedSupply } from "./supply";
 import { seedVenue } from "./venue";
 
 /**
- * Idempotent: runs on every container start. Each domain seed only fills empty tables,
- * so data entered through the app is never overwritten.
+ * Idempotent: runs on every container start. Missing rows are added by unique name,
+ * email, code or facility+day+time. Existing staff rows are never updated or deleted.
  */
 async function main() {
   const prisma = new PrismaClient();

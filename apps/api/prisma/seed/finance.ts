@@ -76,33 +76,25 @@ export async function seedFinance(seeder: Seeder): Promise<void> {
   const { prisma } = seeder;
   const finance = await seeder.actor("finance@bsc.com.bd");
 
-  if (await seeder.empty("account")) {
-    for (const account of CHART_OF_ACCOUNTS) await seeder.record("account", finance, account);
-  }
+  for (const account of CHART_OF_ACCOUNTS) await seeder.recordOnce("account", finance, { code: account.code }, account);
   const accounts = new Map((await prisma.account.findMany()).map((account) => [account.code, account.id]));
   const accountId = (code: string) => accounts.get(code)!;
 
-  if (await seeder.empty("taxRate")) {
-    await seeder.record("taxRate", finance, { name: "VAT 15%", ratePercent: 15, appliesTo: "Both" });
-    await seeder.record("taxRate", finance, { name: "Reduced VAT 7.5%", ratePercent: 7.5, appliesTo: "Sales" });
-    await seeder.record("taxRate", finance, { name: "Advance income tax 5%", ratePercent: 5, appliesTo: "Purchases" }, ["INACTIVE"]);
-  }
+  await seeder.recordOnce("taxRate", finance, { name: "VAT 15%" }, { name: "VAT 15%", ratePercent: 15, appliesTo: "Both" });
+  await seeder.recordOnce("taxRate", finance, { name: "Reduced VAT 7.5%" }, { name: "Reduced VAT 7.5%", ratePercent: 7.5, appliesTo: "Sales" });
+  await seeder.recordOnce("taxRate", finance, { name: "Advance income tax 5%" }, { name: "Advance income tax 5%", ratePercent: 5, appliesTo: "Purchases" }, ["INACTIVE"]);
   const vat = await prisma.taxRate.findFirstOrThrow({ where: { name: "VAT 15%" } });
 
-  if (await seeder.empty("fund")) {
-    await seeder.record("fund", finance, { name: "Capital works reserve", source: "ABG Group", period: "FY2026", amountBdt: 120 * CRORE });
-    await seeder.record("fund", finance, { name: "Youth development fund", source: "National Sports Council grant", period: "FY2026", amountBdt: 4.5 * CRORE });
-    await seeder.record("fund", finance, { name: "Event contingency", source: "Operating surplus", period: "2026-Q4", amountBdt: 1.2 * CRORE }, ["FROZEN"]);
-  }
+  await seeder.recordOnce("fund", finance, { name: "Capital works reserve" }, { name: "Capital works reserve", source: "ABG Group", period: "FY2026", amountBdt: 120 * CRORE });
+  await seeder.recordOnce("fund", finance, { name: "Youth development fund" }, { name: "Youth development fund", source: "National Sports Council grant", period: "FY2026", amountBdt: 4.5 * CRORE });
+  await seeder.recordOnce("fund", finance, { name: "Event contingency" }, { name: "Event contingency", source: "Operating surplus", period: "2026-Q4", amountBdt: 1.2 * CRORE }, ["FROZEN"]);
 
-  if (await seeder.empty("approvalRequest")) {
-    const approval = (subject: string, requester: string, amountBdt: number, moves: string[] = []) =>
-      seeder.record("approvalRequest", finance, { category: "FINANCIAL", subject, requester, approver: "Finance Controller", step: "Finance review", amountBdt }, moves);
-    await approval("Floodlight upgrade advance", "Facilities", 3_400_000);
-    await approval("Q4 marketing campaign", "Marketing", 1_250_000);
-    await approval("Emergency pitch drainage repair", "Operations", 860_000, ["APPROVED"]);
-    await approval("Hospitality suite refurbishment", "Hospitality", 5_600_000, ["REJECTED"]);
-  }
+  const approval = (subject: string, requester: string, amountBdt: number, moves: string[] = []) =>
+    seeder.recordOnce("approvalRequest", finance, { subject }, { category: "FINANCIAL", subject, requester, approver: "Finance Controller", step: "Finance review", amountBdt }, moves);
+  await approval("Floodlight upgrade advance", "Facilities", 3_400_000);
+  await approval("Q4 marketing campaign", "Marketing", 1_250_000);
+  await approval("Emergency pitch drainage repair", "Operations", 860_000, ["APPROVED"]);
+  await approval("Hospitality suite refurbishment", "Hospitality", 5_600_000, ["REJECTED"]);
 
   const months = lastTwelveMonths();
   const currentYear = months.filter((month) => month.currentYear);
@@ -140,19 +132,18 @@ export async function seedFinance(seeder: Seeder): Promise<void> {
     }
   };
 
+  const budget = (name: string, department: string, code: string, crore: number) =>
+    seeder.recordOnce("budget", finance, { name }, { name, department, period: "FY2026", accountId: accountId(code), amountBdt: crore * CRORE }, ["APPROVED"]);
+  await budget("Payroll", "HR", "5100", 11.5);
+  await budget("Utilities", "Facilities", "5200", 3.2);
+  await budget("Maintenance", "Operations", "5300", 3.4);
+  await budget("Security services", "Security", "5600", 2.4);
+  await budget("Marketing", "Marketing", "5500", 1.4);
+  await budget("Supplies and equipment", "Operations", "5400", 1.6);
+  await seeder.recordOnce("budget", finance, { name: "IT systems refresh" }, { name: "IT systems refresh", department: "IT", period: "FY2027", amountBdt: 2.1 * CRORE });
+
   if (await seeder.empty("expense")) {
     await postCosts(priorMonths, 1);
-    if (await seeder.empty("budget")) {
-      const budget = (name: string, department: string, code: string, crore: number) =>
-        seeder.record("budget", finance, { name, department, period: "FY2026", accountId: accountId(code), amountBdt: crore * CRORE }, ["APPROVED"]);
-      await budget("Payroll", "HR", "5100", 11.5);
-      await budget("Utilities", "Facilities", "5200", 3.2);
-      await budget("Maintenance", "Operations", "5300", 3.4);
-      await budget("Security services", "Security", "5600", 2.4);
-      await budget("Marketing", "Marketing", "5500", 1.4);
-      await budget("Supplies and equipment", "Operations", "5400", 1.6);
-      await seeder.record("budget", finance, { name: "IT systems refresh", department: "IT", period: "FY2027", amountBdt: 2.1 * CRORE });
-    }
     const billed = PAYABLES.filter((bill) => bill.status === "ISSUED").reduce((sum, bill) => sum + bill.subtotal, 0);
     await postCosts(currentYear, (YTD_COST - billed) / (CRORE * 1.86 * currentYear.length));
     await seeder.record("expense", finance, { payee: "Rangs Electronics", category: "Maintenance", accountId: accountId("5300"), spentOn: iso(daysFromToday(-2)), amountBdt: 185_000 }, ["SUBMITTED"]);
@@ -161,26 +152,30 @@ export async function seedFinance(seeder: Seeder): Promise<void> {
 
   if (await seeder.empty("invoice")) {
     for (const item of RECEIVABLES) {
-      const invoice = await seeder.record(
+      const invoice = await seeder.recordOnce(
         "invoice",
         finance,
+        { kind: "RECEIVABLE", party: item.party },
         { kind: "RECEIVABLE", party: item.party, issuedOn: iso(daysFromToday(item.issued)), dueOn: iso(daysFromToday(item.due)), accountId: accountId(item.code), taxRateId: vat.id, subtotalBdt: item.subtotal },
         ["ISSUED"],
       );
       const total = Number(invoice.totalBdt);
       const amount = item.paid === "full" ? total : item.paid === "partial" ? roundTo(total * 0.5) : 0;
-      if (amount) await seeder.record("payment", finance, { invoiceId: invoice.id, method: "Bank", paidOn: iso(daysFromToday(Math.min(item.due + 2, 0))), amountBdt: amount }, ["CLEARED"]);
+      if (amount) await seeder.recordOnce("payment", finance, { invoiceId: invoice.id }, { invoiceId: invoice.id, method: "Bank", paidOn: iso(daysFromToday(Math.min(item.due + 2, 0))), amountBdt: amount }, ["CLEARED"]);
     }
     for (const item of PAYABLES) {
-      const bill = await seeder.record(
+      const bill = await seeder.recordOnce(
         "invoice",
         finance,
+        { kind: "PAYABLE", party: item.party },
         { kind: "PAYABLE", party: item.party, issuedOn: iso(daysFromToday(item.issued)), dueOn: iso(daysFromToday(item.due)), accountId: accountId(item.code), taxRateId: vat.id, subtotalBdt: item.subtotal },
         item.status === "ISSUED" ? ["ISSUED"] : [],
       );
-      if (item.paid) await seeder.record("payment", finance, { invoiceId: bill.id, method: "Bank", paidOn: iso(daysFromToday(item.due)), amountBdt: Number(bill.totalBdt) }, ["CLEARED"]);
+      if (item.paid) await seeder.recordOnce("payment", finance, { invoiceId: bill.id }, { invoiceId: bill.id, method: "Bank", paidOn: iso(daysFromToday(item.due)), amountBdt: Number(bill.totalBdt) }, ["CLEARED"]);
     }
     const pending = await prisma.invoice.findFirstOrThrow({ where: { party: "Meghna Group" } });
-    await seeder.record("payment", finance, { invoiceId: pending.id, method: "Bank", paidOn: iso(daysFromToday(0)), amountBdt: 1_000_000 });
+    if ((await prisma.payment.count({ where: { invoiceId: pending.id } })) === 0) {
+      await seeder.record("payment", finance, { invoiceId: pending.id, method: "Bank", paidOn: iso(daysFromToday(0)), amountBdt: 1_000_000 });
+    }
   }
 }

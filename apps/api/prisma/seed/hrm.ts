@@ -32,20 +32,20 @@ const ON_LEAVE_TODAY = 86;
 const ABSENT_TODAY = 31;
 
 export async function seedHrm(seeder: Seeder): Promise<void> {
-  if (!(await seeder.empty("department"))) return;
   const { prisma } = seeder;
   const hr = await seeder.actor("hrm@bsc.com.bd");
-  const rec = (key: string, input: Record<string, unknown>, moves: string[] = []) => seeder.record(key, hr, input, moves);
+  const once = (key: string, where: Record<string, unknown>, input: Record<string, unknown>, moves: string[] = []) =>
+    seeder.recordOnce(key, hr, where, input, moves);
   const random = rng(842);
   const pick = <T>(list: readonly T[]) => list[Math.floor(random() * list.length)]!;
 
   const positions: { id: string; departmentId: string; salary: number; title: string }[] = [];
   const departmentIds: string[] = [];
   for (const [name, head, location, , roles] of DEPARTMENTS) {
-    const department = await rec("department", { name, head, location });
+    const department = await once("department", { name }, { name, head, location });
     departmentIds.push(department.id);
     for (const [title, grade, salary, openings] of roles) {
-      const position = await rec("position", { title, departmentId: department.id, grade, openings });
+      const position = await once("position", { title, departmentId: department.id }, { title, departmentId: department.id, grade, openings });
       positions.push({ id: position.id, departmentId: department.id, salary, title });
     }
   }
@@ -83,29 +83,34 @@ export async function seedHrm(seeder: Seeder): Promise<void> {
     person.birthDate = new Date(Date.UTC(1980 + n * 2, soon.getUTCMonth(), soon.getUTCDate()));
     if (n < 5) person.joinedOn = new Date(Date.UTC(soon.getUTCFullYear() - (1 + n), soon.getUTCMonth(), soon.getUTCDate()));
   }
-  const employeeRefs = await refBlock(prisma, "EMP", staff.length);
-  await prisma.employee.createMany({
-    data: staff.map((person, index) => ({
-      reference: employeeRefs[index]!,
-      status: "ACTIVE",
-      name: person.name,
-      departmentId: person.departmentId,
-      positionId: person.positionId,
-      employmentType: person.type,
-      phone: `+880 17${String(10_000_000 + index * 9173).slice(0, 8)}`,
-      joinedOn: person.joinedOn,
-      birthDate: person.birthDate,
-      basicSalaryBdt: bdt(person.salary),
-      createdById: hr.id,
-    })),
-  });
+  if ((await prisma.employee.count()) === 0) {
+    const employeeRefs = await refBlock(prisma, "EMP", staff.length);
+    await prisma.employee.createMany({
+      data: staff.map((person, index) => ({
+        reference: employeeRefs[index]!,
+        status: "ACTIVE",
+        name: person.name,
+        departmentId: person.departmentId,
+        positionId: person.positionId,
+        employmentType: person.type,
+        phone: `+880 17${String(10_000_000 + index * 9173).slice(0, 8)}`,
+        joinedOn: person.joinedOn,
+        birthDate: person.birthDate,
+        basicSalaryBdt: bdt(person.salary),
+        createdById: hr.id,
+      })),
+    });
+  }
   const employees = await prisma.employee.findMany({ orderBy: { reference: "asc" }, select: { id: true, name: true, departmentId: true } });
+  if (employees.length === 0) return;
   const at = (index: number) => employees[index % employees.length]!;
 
   // Leave: 86 people away today, plus earlier approved leave this year.
+  const leaveRows: { employeeId: string; leaveType: string; fromOn: Date; toOn: Date; days: number; status: string; reason: string }[] = [];
+  const seedLeave = (await prisma.leaveRequest.count()) === 0;
+  if (seedLeave) {
   const leaveRefs = await refBlock(prisma, "LVE", ON_LEAVE_TODAY + 140 + 6);
   let leaveRef = 0;
-  const leaveRows = [];
   for (let n = 0; n < ON_LEAVE_TODAY; n++) {
     const start = -Math.floor(random() * 3);
     const type = n % 7 === 0 ? "Sick" : n % 3 === 0 ? "Casual" : "Annual";
@@ -127,8 +132,10 @@ export async function seedHrm(seeder: Seeder): Promise<void> {
   await prisma.leaveRequest.createMany({
     data: leaveRows.map((row) => ({ ...row, reference: leaveRefs[leaveRef++]!, decidedBy: row.status === "APPROVED" ? hr.name : null, decidedAt: row.status === "APPROVED" ? row.fromOn : null, createdById: hr.id })),
   });
+  }
 
   // Attendance for the last 30 days; today: 86 on leave, 31 absent, the rest checked in.
+  if ((await prisma.attendanceRecord.count()) === 0) {
   const onLeave = new Set(leaveRows.slice(0, ON_LEAVE_TODAY).map((row) => row.employeeId));
   const attendance = [];
   for (let back = ATTENDANCE_DAYS - 1; back >= 0; back--) {
@@ -156,22 +163,24 @@ export async function seedHrm(seeder: Seeder): Promise<void> {
       data: attendance.slice(offset, offset + 5000).map((row, index) => ({ ...row, reference: attendanceRefs[offset + index]!, createdById: hr.id })),
     });
   }
+  }
 
   // Payroll: this month processed and waiting. Earlier months are already in the finance seed's salary expenses.
   const payDate = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + 1, 0)).toISOString().slice(0, 10);
-  await rec("payrollRun", { period: monthStart.toISOString().slice(0, 7), payDate, notes: "Awaiting finance sign-off" }, ["PROCESSED"]);
+  const payrollPeriod = monthStart.toISOString().slice(0, 7);
+  await once("payrollRun", { period: payrollPeriod }, { period: payrollPeriod, payDate, notes: "Awaiting finance sign-off" }, ["PROCESSED"]);
 
   // Recruitment and onboarding.
   const position = (title: string) => positions.find((role) => role.title === title)!;
-  await rec("candidate", { name: "Shuvo Das", positionId: position("Coach").id, phone: "+880 1711-555010", source: "Referral" }, ["INTERVIEW"]);
-  await rec("candidate", { name: "Moumita Roy", positionId: position("Systems Engineer").id, phone: "+880 1819-333221", email: "moumita.roy@mail.com", source: "LinkedIn" }, ["INTERVIEW", "OFFER"]);
-  await rec("candidate", { name: "Jahid Hasan", positionId: position("Security Officer").id, phone: "+880 1552-101202", source: "Walk-in" });
-  await rec("candidate", { name: "Priya Saha", positionId: position("Sports Executive").id, phone: "+880 1677-808080", source: "Job portal" }, ["INTERVIEW", "OFFER", "HIRED"]);
-  await rec("candidate", { name: "Rony Mondal", positionId: position("Ground Staff").id, phone: "+880 1913-414141", source: "Walk-in" }, ["REJECTED"]);
+  await once("candidate", { name: "Shuvo Das" }, { name: "Shuvo Das", positionId: position("Coach").id, phone: "+880 1711-555010", source: "Referral" }, ["INTERVIEW"]);
+  await once("candidate", { name: "Moumita Roy" }, { name: "Moumita Roy", positionId: position("Systems Engineer").id, phone: "+880 1819-333221", email: "moumita.roy@mail.com", source: "LinkedIn" }, ["INTERVIEW", "OFFER"]);
+  await once("candidate", { name: "Jahid Hasan" }, { name: "Jahid Hasan", positionId: position("Security Officer").id, phone: "+880 1552-101202", source: "Walk-in" });
+  await once("candidate", { name: "Priya Saha" }, { name: "Priya Saha", positionId: position("Sports Executive").id, phone: "+880 1677-808080", source: "Job portal" }, ["INTERVIEW", "OFFER", "HIRED"]);
+  await once("candidate", { name: "Rony Mondal" }, { name: "Rony Mondal", positionId: position("Ground Staff").id, phone: "+880 1913-414141", source: "Walk-in" }, ["REJECTED"]);
 
   for (let n = 0; n < 4; n++) {
     const person = at(n * 211 + 5);
-    await rec("employeeDocument", { employeeId: person.id, docType: n % 2 ? "National ID" : "Employment contract", documentNo: `DOC-${48120 + n}`, expiresOn: n % 2 ? undefined : iso(20 + n * 90) });
+    await once("employeeDocument", { documentNo: `DOC-${48120 + n}` }, { employeeId: person.id, docType: n % 2 ? "National ID" : "Employment contract", documentNo: `DOC-${48120 + n}`, expiresOn: n % 2 ? undefined : iso(20 + n * 90) });
   }
 
   // Scheduling.
@@ -182,28 +191,28 @@ export async function seedHrm(seeder: Seeder): Promise<void> {
     ["Pitch prep", "07:00", "12:00", "Central Stadium"],
   ];
   for (const [n, [name, startsAt, endsAt, location]] of shifts.entries()) {
-    await rec("shift", { employeeId: at(n * 61 + 520).id, kind: "SHIFT", name, workDate: iso(0), startsAt, endsAt, location });
-    await rec("shift", { employeeId: at(n * 61 + 521).id, kind: "DUTY", name: `${location} duty`, workDate: iso(1), startsAt, endsAt, location });
+    await once("shift", { name }, { employeeId: at(n * 61 + 520).id, kind: "SHIFT", name, workDate: iso(0), startsAt, endsAt, location });
+    await once("shift", { name: `${location} duty` }, { employeeId: at(n * 61 + 521).id, kind: "DUTY", name: `${location} duty`, workDate: iso(1), startsAt, endsAt, location });
   }
   const events = await prisma.eventPack.findMany({ take: 3, orderBy: { createdAt: "asc" } });
   for (const [n, eventPack] of events.entries()) {
-    await rec("workforcePlan", { name: `${eventPack.title} crew`, scope: "EVENT", departmentId: departmentIds[n % 4]!, eventPackId: eventPack.id, headcount: 40 + n * 25, planDate: iso(7 + n * 5) });
-    await rec("staffAssignment", { employeeId: at(n * 17 + 90).id, kind: "ALLOCATION", title: "Gate supervisor", eventPackId: eventPack.id, location: "Gate B", priority: "High" });
-    await rec("volunteer", { name: `${pick(FIRST)} ${pick(LAST)}`, phone: `+880 1555-0${n}1122`, skill: n ? "Crowd guidance" : "First aid", eventPackId: eventPack.id });
+    await once("workforcePlan", { name: `${eventPack.title} crew` }, { name: `${eventPack.title} crew`, scope: "EVENT", departmentId: departmentIds[n % 4]!, eventPackId: eventPack.id, headcount: 40 + n * 25, planDate: iso(7 + n * 5) });
+    await once("staffAssignment", { title: "Gate supervisor", eventPackId: eventPack.id }, { employeeId: at(n * 17 + 90).id, kind: "ALLOCATION", title: "Gate supervisor", eventPackId: eventPack.id, location: "Gate B", priority: "High" });
+    await once("volunteer", { eventPackId: eventPack.id }, { name: `${FIRST[n]!} ${LAST[n]!}`, phone: `+880 1555-0${n}1122`, skill: n ? "Crowd guidance" : "First aid", eventPackId: eventPack.id });
   }
-  await rec("workforcePlan", { name: "Security headcount FY26", scope: "PERIOD", departmentId: departmentIds[4]!, headcount: 82, period: "FY2026" }, ["IN_PROGRESS"]);
-  await rec("staffAssignment", { employeeId: at(33).id, kind: "TASK", title: "Renew fire safety certificates", dueOn: iso(9), priority: "High" });
-  await rec("staffAssignment", { employeeId: at(77).id, kind: "TASK", title: "Update staff handbook", dueOn: iso(21), priority: "Normal" }, ["IN_PROGRESS"]);
+  await once("workforcePlan", { name: "Security headcount FY26" }, { name: "Security headcount FY26", scope: "PERIOD", departmentId: departmentIds[4]!, headcount: 82, period: "FY2026" }, ["IN_PROGRESS"]);
+  await once("staffAssignment", { title: "Renew fire safety certificates" }, { employeeId: at(33).id, kind: "TASK", title: "Renew fire safety certificates", dueOn: iso(9), priority: "High" });
+  await once("staffAssignment", { title: "Update staff handbook" }, { employeeId: at(77).id, kind: "TASK", title: "Update staff handbook", dueOn: iso(21), priority: "Normal" }, ["IN_PROGRESS"]);
 
-  await rec("contractor", { name: "Mizanur Rahman", company: "BuildRight Ltd.", trade: "Civil works", phone: "+880 1711-909001", validUntil: iso(60) });
-  await rec("contractor", { name: "Sohel Rana", company: "CoolAir Services", trade: "HVAC", validUntil: iso(14) });
+  await once("contractor", { name: "Mizanur Rahman" }, { name: "Mizanur Rahman", company: "BuildRight Ltd.", trade: "Civil works", phone: "+880 1711-909001", validUntil: iso(60) });
+  await once("contractor", { name: "Sohel Rana" }, { name: "Sohel Rana", company: "CoolAir Services", trade: "HVAC", validUntil: iso(14) });
   const volunteers = await prisma.volunteer.findMany({ select: { id: true, eventPackId: true } });
   for (const [n, volunteer] of volunteers.entries()) {
-    await rec("volunteerShift", { volunteerId: volunteer.id, eventPackId: volunteer.eventPackId ?? undefined, shift: n % 2 ? "Afternoon" : "Morning", workDate: iso(7 + n * 5) });
+    await once("volunteerShift", { volunteerId: volunteer.id }, { volunteerId: volunteer.id, eventPackId: volunteer.eventPackId ?? undefined, shift: n % 2 ? "Afternoon" : "Morning", workDate: iso(7 + n * 5) });
   }
-  if (volunteers[0]) await rec("recognition", { volunteerId: volunteers[0].id, award: "Volunteer of the month", awardedOn: iso(-12) });
-  await rec("badge", { holder: "Mizanur Rahman", holderType: "Contractor", zone: "Back of house", validUntil: iso(60) });
-  await rec("badge", { holder: at(520).name, holderType: "Employee", zone: "Control room", validUntil: iso(180) });
+  if (volunteers[0]) await once("recognition", { volunteerId: volunteers[0].id }, { volunteerId: volunteers[0].id, award: "Volunteer of the month", awardedOn: iso(-12) });
+  await once("badge", { holder: "Mizanur Rahman" }, { holder: "Mizanur Rahman", holderType: "Contractor", zone: "Back of house", validUntil: iso(60) });
+  await once("badge", { holder: at(520).name }, { holder: at(520).name, holderType: "Employee", zone: "Control room", validUntil: iso(180) });
 
   // Skills, training, performance, communication.
   const skills = [];
@@ -214,18 +223,20 @@ export async function seedHrm(seeder: Seeder): Promise<void> {
     ["Customer service", "Customer"],
     ["Football coaching", "Sport"],
   ] as const) {
-    skills.push(await rec("skill", { name, category }));
+    skills.push(await once("skill", { name }, { name, category }));
   }
   for (let n = 0; n < 15; n++) {
-    await rec("employeeSkill", { employeeId: at(n * 53 + 11).id, skillId: skills[n % skills.length]!.id, level: (["Basic", "Working", "Advanced"] as const)[n % 3] });
+    await once("employeeSkill", { employeeId: at(n * 53 + 11).id, skillId: skills[n % skills.length]!.id }, { employeeId: at(n * 53 + 11).id, skillId: skills[n % skills.length]!.id, level: (["Basic", "Working", "Advanced"] as const)[n % 3] });
   }
-  const course = await rec("trainingSession", { course: "Customer Service Excellence", trainer: "Shirin Akter", sessionDate: iso(6), seats: 20 });
-  await rec("trainingSession", { course: "Crowd Safety Refresher", trainer: "Rakib Hossain", sessionDate: iso(-8), seats: 30 }, ["IN_PROGRESS", "COMPLETED"]);
-  for (let n = 0; n < 6; n++) await rec("trainingEnrollment", { trainingSessionId: course.id, employeeId: at(n * 97 + 2).id });
+  const course = await once("trainingSession", { course: "Customer Service Excellence" }, { course: "Customer Service Excellence", trainer: "Shirin Akter", sessionDate: iso(6), seats: 20 });
+  await once("trainingSession", { course: "Crowd Safety Refresher" }, { course: "Crowd Safety Refresher", trainer: "Rakib Hossain", sessionDate: iso(-8), seats: 30 }, ["IN_PROGRESS", "COMPLETED"]);
+  for (let n = 0; n < 6; n++) {
+    await once("trainingEnrollment", { trainingSessionId: course.id, employeeId: at(n * 97 + 2).id }, { trainingSessionId: course.id, employeeId: at(n * 97 + 2).id });
+  }
   for (let n = 0; n < 5; n++) {
-    await rec("performanceReview", { employeeId: at(n * 151 + 8).id, period: "2026-Q3", rating: 3 + (n % 3), reviewer: DEPARTMENTS[n]![1] }, n < 3 ? ["IN_PROGRESS", "COMPLETED"] : []);
-    await rec("goal", { employeeId: at(n * 151 + 8).id, period: "2026-Q4", title: ["Cut gate wait times", "Close audit actions", "Zero safety incidents", "Grow academy intake", "Ship booking kiosk"][n]!, score: 40 + n * 12 }, ["IN_PROGRESS"]);
+    await once("performanceReview", { employeeId: at(n * 151 + 8).id, period: "2026-Q3" }, { employeeId: at(n * 151 + 8).id, period: "2026-Q3", rating: 3 + (n % 3), reviewer: DEPARTMENTS[n]![1] }, n < 3 ? ["IN_PROGRESS", "COMPLETED"] : []);
+    await once("goal", { title: ["Cut gate wait times", "Close audit actions", "Zero safety incidents", "Grow academy intake", "Ship booking kiosk"][n]! }, { employeeId: at(n * 151 + 8).id, period: "2026-Q4", title: ["Cut gate wait times", "Close audit actions", "Zero safety incidents", "Grow academy intake", "Ship booking kiosk"][n]!, score: 40 + n * 12 }, ["IN_PROGRESS"]);
   }
-  await rec("announcement", { subject: "Eid holiday roster published", audience: "All staff", channel: "Notice", body: "Check the duty roster for your Eid shifts." }, ["SENT"]);
-  await rec("announcement", { subject: "Match-day briefing, Gate team", audience: "Security", channel: "Briefing" });
+  await once("announcement", { subject: "Eid holiday roster published" }, { subject: "Eid holiday roster published", audience: "All staff", channel: "Notice", body: "Check the duty roster for your Eid shifts." }, ["SENT"]);
+  await once("announcement", { subject: "Match-day briefing, Gate team" }, { subject: "Match-day briefing, Gate team", audience: "Security", channel: "Briefing" });
 }

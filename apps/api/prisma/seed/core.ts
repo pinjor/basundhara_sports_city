@@ -673,8 +673,7 @@ export async function seedCore(prisma: PrismaClient) {
     }
   }
 
-  const matchCount = await prisma.matchEvent.count();
-  if (matchCount === 0) {
+  {
     const at = (daysFromNow: number, hour: number) => {
       const date = new Date();
       date.setDate(date.getDate() + daysFromNow);
@@ -721,6 +720,7 @@ export async function seedCore(prisma: PrismaClient) {
       },
     ];
     for (const catalogue of catalogues) {
+      if (await prisma.matchEvent.findFirst({ where: { title: catalogue.title } })) continue;
       const event = await prisma.matchEvent.create({
         data: {
           title: catalogue.title,

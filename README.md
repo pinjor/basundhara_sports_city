@@ -112,7 +112,9 @@ bun run dev
 
 `bun run dev` uses the same web port 18480 and API port 18481. Do not run it while `docker:up` is serving those ports. Postgres for that path is `localhost:18432` in `apps/api/.env.example`.
 
-Seed accounts (password for all: `Password123!`):
+Local docker sets `SEED_DEMO_DATA=true` so seed fills missing courts, slots, events, menus and ride stops (never overwrites staff rows). The public demo host should do the same. A real go-live keeps `SEED_DEMO_DATA=false` (see `.env.production.example`).
+
+Seed accounts (password for all: `Password123!`). Staff website Login still shows those demo chips. App demo visitor: `demo.visitor@abg.example` / `Password123!`.
 
 | Email | Role |
 |---|---|

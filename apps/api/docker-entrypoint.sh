@@ -2,7 +2,7 @@
 set -eu
 cd /app/apps/api
 bunx prisma migrate deploy
-# Demo data (shared demo password) only when asked for. Idempotent: fills empty tables only.
+# Demo data (shared demo password) only when asked for. Idempotent: fills missing rows by unique name/code.
 if [ "${SEED_DEMO_DATA:-false}" = "true" ]; then
   bun prisma/seed/index.ts
 fi

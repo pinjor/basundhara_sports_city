@@ -1,5 +1,10 @@
 import * as bcrypt from "bcryptjs";
+import { BookingStatus, PaymentStatus } from "@bsc/shared";
+import { BookingsService } from "../../src/bookings/bookings.service";
+import { MembersService } from "../../src/members/members.service";
+import { TicketingService } from "../../src/ticketing/ticketing.service";
 import type { Seeder } from "./app";
+import { daysFromToday } from "./util";
 
 /**
  * Demo content for showing the staff website and the customer app side by side: a full day of slots,
@@ -8,12 +13,11 @@ import type { Seeder } from "./app";
  * on every demo start so event dates stay in the future.
  */
 export async function seedShowcase(seeder: Seeder): Promise<void> {
-  const prisma = seeder.prisma;
   const bookings = await seeder.actor("bookings@bsc.com.bd");
   await seedSlots(seeder, bookings);
-  await seedEvents(prisma);
-  await seedMembersAndBookings(prisma, bookings.id);
-  await seedDemoVisitor(prisma, bookings.id);
+  await seedEvents(seeder, bookings.id);
+  await seedMembersAndBookings(seeder, bookings.id);
+  await seedDemoVisitor(seeder, bookings.id);
 }
 
 const SLOT_TYPES: Record<string, number> = {
@@ -24,6 +28,10 @@ const SLOT_TYPES: Record<string, number> = {
   "Badminton Court": 1800,
   "Basketball Court": 2200,
   "Squash Court": 1600,
+  "Swimming Pool": 2000,
+  Gym: 1500,
+  "Cricket Ground": 8000,
+  "Training Ground": 4000,
 };
 const WINDOWS: [string, string][] = [
   ["06:00", "08:00"],
@@ -142,9 +150,10 @@ const EVENTS: EventPlan[] = [
   },
 ];
 
-async function seedEvents(prisma: Seeder["prisma"]) {
+async function seedEvents(seeder: Seeder, userId: string) {
+  const ticketing = seeder.service(TicketingService);
   const now = new Date();
-  const upcoming = await prisma.matchEvent.findMany({ where: { startsAt: { gt: now } }, select: { title: true } });
+  const upcoming = await seeder.prisma.matchEvent.findMany({ where: { startsAt: { gt: now } }, select: { title: true } });
   const taken = new Set(upcoming.map((event) => event.title));
   for (const plan of EVENTS) {
     if (taken.has(plan.title)) continue;
@@ -154,26 +163,26 @@ async function seedEvents(prisma: Seeder["prisma"]) {
       date.setHours(plan.hour - hoursBefore, 0, 0, 0);
       return date;
     };
-    const event = await prisma.matchEvent.create({
-      data: {
+    await ticketing.createEvent(
+      {
         title: plan.title,
         sport: plan.sport,
         venueName: plan.venueName,
         venueNote: plan.venueNote,
-        startsAt: at(),
-        doorsAt: at(2),
-        salesStatus: "ON_SALE",
+        startsAt: at().toISOString(),
+        doorsAt: at(2).toISOString(),
         vatRateBps: 1500,
+        sections: plan.sections.map((section) => ({
+          name: section.name,
+          rows: section.rows,
+          seatsPerRow: section.seatsPerRow,
+          priceBdt: section.price,
+          gateName: section.gate,
+        })),
       },
-    });
-    for (const [index, section] of plan.sections.entries()) {
-      const created = await prisma.eventSection.create({
-        data: { eventId: event.id, name: section.name, rows: section.rows, seatsPerRow: section.seatsPerRow, sortOrder: index },
-      });
-      await prisma.ticketCategory.create({
-        data: { eventId: event.id, sectionId: created.id, name: section.name, priceBdt: section.price, gateName: section.gate },
-      });
-    }
+      userId,
+      `seed-event-${plan.title}`,
+    );
   }
 }
 
@@ -195,51 +204,73 @@ const WALK_INS = [
 ];
 
 function dayAt(offset: number): Date {
-  const date = new Date();
-  date.setUTCHours(0, 0, 0, 0);
-  date.setUTCDate(date.getUTCDate() + offset);
-  return date;
+  return daysFromToday(offset);
 }
 
-async function seedMembersAndBookings(prisma: Seeder["prisma"], createdById: string) {
-  for (const member of MEMBERS) {
-    if (await prisma.member.findUnique({ where: { email: member.email } })) continue;
-    const created = await prisma.member.create({
-      data: { ...member, expiryDate: dayAt(member.status === "Expired" ? -10 : 200), billingCycle: "Annual" },
-    });
-    await prisma.credential.create({
-      data: { holderRef: created.name, type: "Member", memberId: created.id, status: created.status === "Active" ? "Active" : "Suspended" },
-    });
-  }
-  for (const row of WALK_INS) {
-    const facility = await prisma.facility.findFirst({ where: { name: row.facility } });
-    if (!facility) continue;
-    const date = dayAt(row.days);
-    const exists = await prisma.booking.findFirst({
-      where: { facilityId: facility.id, date, timeSlotStart: row.start, customerName: row.customerName },
-    });
-    if (exists) continue;
-    await prisma.booking.create({
-      data: {
+async function placeBooking(
+  seeder: Seeder,
+  createdById: string,
+  row: { facility: string; customerName: string; type: string; days: number; start: string; end: string; amount: number; status: string },
+  customerId?: string,
+) {
+  const prisma = seeder.prisma;
+  const facility = await prisma.facility.findFirst({ where: { name: row.facility } });
+  if (!facility) return;
+  const date = dayAt(row.days);
+  const exists = await prisma.booking.findFirst({
+    where: { facilityId: facility.id, date, timeSlotStart: row.start, customerName: row.customerName },
+  });
+  if (exists) return;
+  const bookings = seeder.service(BookingsService);
+  try {
+    const booking = await bookings.create(
+      {
         facilityId: facility.id,
         customerName: row.customerName,
         type: row.type,
-        date,
+        date: date.toISOString().slice(0, 10),
         timeSlotStart: row.start,
         timeSlotEnd: row.end,
-        status: row.status,
         amount: row.amount,
-        paymentStatus: row.status === "Confirmed" ? "Paid" : "Unpaid",
-        createdById,
       },
-    });
+      createdById,
+      customerId,
+    );
+    if (row.status === BookingStatus.CONFIRMED) {
+      await bookings.setStatus(booking.id, BookingStatus.CONFIRMED, createdById);
+      await bookings.setPaymentStatus(booking.id, PaymentStatus.PAID, createdById);
+    }
+  } catch (error) {
+    console.warn(`showcase booking skipped (${row.customerName} · ${row.facility}):`, error instanceof Error ? error.message : error);
   }
+}
+
+async function seedMembersAndBookings(seeder: Seeder, createdById: string) {
+  const prisma = seeder.prisma;
+  const members = seeder.service(MembersService);
+  for (const member of MEMBERS) {
+    if (await prisma.member.findUnique({ where: { email: member.email } })) continue;
+    const created = await members.create(
+      {
+        name: member.name,
+        email: member.email,
+        tier: member.tier,
+        expiryDate: dayAt(member.status === "Expired" ? -10 : 200).toISOString(),
+        billingCycle: "Annual",
+      },
+      createdById,
+    );
+    await prisma.member.update({ where: { id: created.id }, data: { checkInCount: member.checkInCount } });
+    if (member.status !== "Active") await members.setStatus(created.id, member.status, createdById);
+  }
+  for (const row of WALK_INS) await placeBooking(seeder, createdById, row);
 }
 
 export const DEMO_VISITOR = { email: "demo.visitor@abg.example", mobile: "01711000001", password: "Password123!" };
 
 /** A visitor account for the app: sign in and see a membership, bookings and messages straight away. */
-async function seedDemoVisitor(prisma: Seeder["prisma"], createdById: string) {
+async function seedDemoVisitor(seeder: Seeder, createdById: string) {
+  const prisma = seeder.prisma;
   if (await prisma.customer.findUnique({ where: { email: DEMO_VISITOR.email } })) return;
   const customer = await prisma.customer.create({
     data: {
@@ -253,44 +284,30 @@ async function seedDemoVisitor(prisma: Seeder["prisma"], createdById: string) {
       consents: [{ purpose: "Terms of use", granted: true, at: new Date().toISOString(), version: "v1.1", channel: "App", language: "en" }],
     },
   });
-  const member = await prisma.member.create({
-    data: {
+  const members = seeder.service(MembersService);
+  const member = await members.create(
+    {
       name: customer.name,
-      email: customer.email,
+      email: customer.email!,
       phone: customer.mobile,
       tier: "Individual",
-      status: "Active",
-      expiryDate: dayAt(300),
+      expiryDate: dayAt(300).toISOString(),
       billingCycle: "Annual",
-      customerId: customer.id,
-      planCode: "annual",
-      checkInCount: 12,
     },
+    createdById,
+  );
+  await prisma.member.update({
+    where: { id: member.id },
+    data: { customerId: customer.id, planCode: "annual", checkInCount: 12 },
   });
-  await prisma.credential.create({ data: { holderRef: customer.name, type: "Member", memberId: member.id, customerId: customer.id, status: "Active" } });
+  await prisma.credential.updateMany({ where: { memberId: member.id }, data: { customerId: customer.id } });
 
   const sessions = [
     { facility: "Futsal Arena 1", days: 2, start: "18:00", end: "20:00", amount: 7000 },
     { facility: "Padel Court 2", days: 5, start: "17:00", end: "19:00", amount: 3750 },
   ];
   for (const row of sessions) {
-    const facility = await prisma.facility.findFirst({ where: { name: row.facility } });
-    if (!facility) continue;
-    await prisma.booking.create({
-      data: {
-        facilityId: facility.id,
-        customerName: customer.name,
-        type: "Member",
-        date: dayAt(row.days),
-        timeSlotStart: row.start,
-        timeSlotEnd: row.end,
-        status: "Confirmed",
-        amount: row.amount,
-        paymentStatus: "Paid",
-        createdById,
-        customerId: customer.id,
-      },
-    });
+    await placeBooking(seeder, createdById, { ...row, customerName: customer.name, type: "Member", status: BookingStatus.CONFIRMED }, customer.id);
   }
   await prisma.customerNotification.createMany({
     data: [

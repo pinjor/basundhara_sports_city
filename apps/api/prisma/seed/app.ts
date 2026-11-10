@@ -16,6 +16,14 @@ export interface Seeder {
   actor(email: string): Promise<RequestUser>;
   /** Creates a record, then walks it through `moves` (workflow statuses, in order). */
   record(entityKey: string, actor: RequestUser, input: Data, moves?: string[]): Promise<Data & { id: string }>;
+  /** Same as `record`, but skips when a row matching `where` already exists (never updates it). */
+  recordOnce(
+    entityKey: string,
+    actor: RequestUser,
+    where: Record<string, unknown>,
+    input: Data,
+    moves?: string[],
+  ): Promise<Data & { id: string }>;
   /** Moves an existing record (e.g. one raised by another document's hook). */
   move(entityKey: string, id: string, status: string, actor: RequestUser): Promise<Data>;
   /** A Nest provider, for seeding through non-registry services (e.g. ticket orders). */
@@ -44,6 +52,13 @@ export async function withSeeder(prisma: PrismaClient, run: (seeder: Seeder) => 
         let row = (await service.create(input, actor)) as Data & { id: string };
         for (const status of moves) row = (await service.transition(row.id, status, actor)) as Data & { id: string };
         return row;
+      },
+      async recordOnce(entityKey, actor, where, input, moves = []) {
+        const model = registry.get(entityKey).entity.model;
+        const delegate = (prisma as unknown as Record<string, { findFirst(args: object): Promise<(Data & { id: string }) | null> }>)[model]!;
+        const existing = await delegate.findFirst({ where });
+        if (existing) return existing;
+        return seeder.record(entityKey, actor, input, moves);
       },
       service: (type) => app.get(type),
       move(entityKey, id, status, actor) {

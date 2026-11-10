@@ -24,15 +24,14 @@ const CAMERAS = [
 /** Security, projects, event sign-off and inbox messages. */
 export async function seedPlatform(seeder: Seeder): Promise<void> {
   const { prisma } = seeder;
-  if ((await prisma.notification.count()) === 0) await seedNotifications(prisma);
-  if (await seeder.empty("camera")) await seedSecurity(seeder);
-  if (await seeder.empty("project")) await seedProjects(seeder);
+  await seedNotifications(prisma);
+  await seedSecurity(seeder);
+  await seedProjects(seeder);
   await seedEventApprovals(prisma);
 }
 
 async function seedNotifications(prisma: PrismaClient) {
-  await prisma.notification.createMany({
-    data: [
+  const rows = [
       { title: "Monthly payroll processed", body: "Payslips are ready for review before posting.", href: "/hrm?feature=payroll-management", role: Role.HR_MANAGER },
       { title: "Leave requests waiting", body: "Several leave requests need a decision today.", href: "/hrm?feature=leave-management", role: Role.HR_MANAGER },
       { title: "Vendor bill ready", body: "A matched purchase order created a payable invoice.", href: "/finance?feature=invoice-management", role: Role.FINANCE_CONTROLLER },
@@ -41,27 +40,30 @@ async function seedNotifications(prisma: PrismaClient) {
       { title: "Match tickets selling", body: "Online sales opened for the next home fixture.", href: "/ticketing", role: Role.BOOKINGS_OFFICER },
       { title: "Events awaiting approval", body: "Upcoming events need the chairman's sign-off.", href: "/chairman", role: Role.CHAIRMAN },
       { title: "Welcome to Sports City", body: "Live figures now come straight from the operations database.", href: null, role: null },
-    ],
-  });
+  ];
+  for (const row of rows) {
+    if (await prisma.notification.findFirst({ where: { title: row.title } })) continue;
+    await prisma.notification.create({ data: row });
+  }
 }
 
 async function seedSecurity(seeder: Seeder) {
   const security = await seeder.actor("security@bsc.com.bd");
-  const rec = (key: string, input: Record<string, unknown>, moves: string[] = []) => seeder.record(key, security, input, moves);
-
-  const cameras: Awaited<ReturnType<typeof rec>>[] = [];
-  for (const camera of CAMERAS) cameras.push(await rec("camera", camera));
-  await seeder.move("camera", cameras[10]!.id, "MAINTENANCE", security);
+  const cameras: Awaited<ReturnType<Seeder["recordOnce"]>>[] = [];
+  for (const camera of CAMERAS) cameras.push(await seeder.recordOnce("camera", security, { name: camera.name }, camera));
+  if (cameras[10] && cameras[10].status === "ONLINE") await seeder.move("camera", cameras[10].id, "MAINTENANCE", security);
 
   const camera = (name: string) => cameras.find((row) => row.name === name)!.id;
-  await rec("securityAlert", { kind: "Unauthorized Access", severity: "Critical", cameraId: camera("Main Entrance"), location: "Main Gate" });
-  await rec("securityAlert", { kind: "Suspicious Activity", severity: "High", cameraId: camera("Parking B"), location: "Parking Area" });
-  await rec("securityAlert", { kind: "Crowd Density High", severity: "Medium", cameraId: camera("Football Stadium"), location: "Stadium" });
-  await rec("securityAlert", { kind: "Vehicle Without Pass", severity: "High", cameraId: camera("Entry Gate"), location: "Entry Gate", subject: "Plate DHA-3321" });
-  await rec("securityAlert", { kind: "Perimeter Breach", severity: "Critical", cameraId: camera("East Fence"), location: "East Zone" });
-  await rec("securityAlert", { kind: "Camera Offline", severity: "Low", cameraId: camera("Cricket Nets"), location: "Cricket Nets" }, ["ACKNOWLEDGED"]);
-  await rec("securityAlert", { kind: "Suspicious Activity", severity: "Medium", cameraId: camera("Food Court"), location: "Food Court", notes: "Unattended bag; owner found" }, ["RESOLVED"]);
-  await rec("lockdownEvent", { reason: "Quarterly evacuation drill", scope: "All gates", drill: true }, ["ENDED"]);
+  const alert = (kind: string, location: string, input: Record<string, unknown>, moves: string[] = []) =>
+    seeder.recordOnce("securityAlert", security, { kind, location }, input, moves);
+  await alert("Unauthorized Access", "Main Gate", { kind: "Unauthorized Access", severity: "Critical", cameraId: camera("Main Entrance"), location: "Main Gate" });
+  await alert("Suspicious Activity", "Parking Area", { kind: "Suspicious Activity", severity: "High", cameraId: camera("Parking B"), location: "Parking Area" });
+  await alert("Crowd Density High", "Stadium", { kind: "Crowd Density High", severity: "Medium", cameraId: camera("Football Stadium"), location: "Stadium" });
+  await alert("Vehicle Without Pass", "Entry Gate", { kind: "Vehicle Without Pass", severity: "High", cameraId: camera("Entry Gate"), location: "Entry Gate", subject: "Plate DHA-3321" });
+  await alert("Perimeter Breach", "East Zone", { kind: "Perimeter Breach", severity: "Critical", cameraId: camera("East Fence"), location: "East Zone" });
+  await alert("Camera Offline", "Cricket Nets", { kind: "Camera Offline", severity: "Low", cameraId: camera("Cricket Nets"), location: "Cricket Nets" }, ["ACKNOWLEDGED"]);
+  await alert("Suspicious Activity", "Food Court", { kind: "Suspicious Activity", severity: "Medium", cameraId: camera("Food Court"), location: "Food Court", notes: "Unattended bag; owner found" }, ["RESOLVED"]);
+  await seeder.recordOnce("lockdownEvent", security, { reason: "Quarterly evacuation drill" }, { reason: "Quarterly evacuation drill", scope: "All gates", drill: true }, ["ENDED"]);
 
   const incidents = seeder.service(IncidentsService);
   const logged = [];
@@ -71,10 +73,11 @@ async function seedSecurity(seeder: Seeder) {
     { title: "Fence damage on east perimeter", severity: "Critical", notes: "Temporary barrier placed" },
     { title: "Lost child reunited at Food Court", severity: "Low" },
   ]) {
-    logged.push(await incidents.create(incident, security));
+    const existing = await seeder.prisma.opsIncident.findFirst({ where: { title: incident.title } });
+    logged.push(existing ?? (await incidents.create(incident, security)));
   }
-  await incidents.setStatus(logged[0]!.id, "Investigating", security);
-  await incidents.setStatus(logged[3]!.id, "Resolved", security);
+  if (logged[0] && logged[0].status === "Open") await incidents.setStatus(logged[0].id, "Investigating", security);
+  if (logged[3] && logged[3].status === "Open") await incidents.setStatus(logged[3].id, "Resolved", security);
 }
 
 async function seedProjects(seeder: Seeder) {
@@ -86,7 +89,7 @@ async function seedProjects(seeder: Seeder) {
     ["Additional Parking Zone", "Infrastructure", 120_000_000, 55, iso(75)],
     ["Elite Training Center", "Sports Science", 460_000_000, 28, iso(240)],
   ] as const) {
-    await seeder.record("project", admin, { name, owner, budgetBdt, progress, dueOn }, ["IN_PROGRESS"]);
+    await seeder.recordOnce("project", admin, { name }, { name, owner, budgetBdt, progress, dueOn }, ["IN_PROGRESS"]);
   }
 }
 
